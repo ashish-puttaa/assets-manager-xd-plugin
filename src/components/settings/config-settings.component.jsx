@@ -1,22 +1,18 @@
 const React = require('react');
-const fs = require('uxp').storage.localFileSystem;
 
-const { hiddenInputIds, hiddenInputEvent } = require('./hidden-input.data.js');
+const AppContext = require('../../context/appContext.js');
 
-function ConfigSettings({ closeModal, setConfigJsonName }) {
+function ConfigSettings({ closeDialog }) {
    const [fileName, setFileName] = React.useState('');
-   const [warningMessage, setWarningMessage] = React.useState('');
-   const [successMessage, setSuccessMessage] = React.useState('');
    const [isInputReadOnly, setInputReadOnly] = React.useState(true);
 
+   const [warningMessage, setWarningMessage] = React.useState('');
+   const [successMessage, setSuccessMessage] = React.useState('');
+
+   const { configJsonName, setConfigJsonName } = React.useContext(AppContext);
+
    React.useEffect(() => {
-      const hiddenInput = document.getElementById(hiddenInputIds.CONFIG_FILE_NAME);
-      setFileName(hiddenInput.value);
-
-      const handleHiddenInputEvent = (e) => setFileName(e.target.value);
-      hiddenInput.addEventListener(hiddenInputEvent, handleHiddenInputEvent);
-
-      return () => hiddenInput.removeEventListener(hiddenInputEvent, handleHiddenInputEvent);
+      setFileName(configJsonName);
    }, []);
 
    const saveChanges = () => {
@@ -71,7 +67,7 @@ function ConfigSettings({ closeModal, setConfigJsonName }) {
          {warningMessage && <p className="settings-warning">{warningMessage}</p>}
 
          <footer>
-            <button onClick={closeModal} uxp-variant="secondary" uxp-quiet="true">
+            <button onClick={closeDialog} uxp-variant="secondary" uxp-quiet="true">
                Close
             </button>
             <button uxp-variant="cta" type="submit" onClick={saveChanges}>

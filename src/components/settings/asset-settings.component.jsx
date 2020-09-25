@@ -1,32 +1,19 @@
 const React = require('react');
 const fs = require('uxp').storage.localFileSystem;
 
+const AppContext = require('../../context/appContext.js');
 const loadAssetDataFromFile = require('../../utils/loadAssetDataFromFile.js');
-const { hiddenInputIds, hiddenInputEvent } = require('./hidden-input.data.js');
 
-function AssetSettings({ closeModal, setAssetsFolderObj, folderObj, setFolderObj }) {
-   const [folderPath, setFolderPath] = React.useState('');
-   const [configFileName, setConfigFileName] = React.useState('');
-
+function AssetSettings({ closeDialog }) {
    const [message, setMessage] = React.useState({ type: 'warning', content: '' });
    const { content: messageContent, type: messageType } = message;
 
-   React.useEffect(() => {
-      const folderPathInput = document.getElementById(hiddenInputIds.ASSETS_FOLDER_PATH);
-      const configNameInput = document.getElementById(hiddenInputIds.CONFIG_FILE_NAME);
-      setFolderPath(folderPathInput.value);
-      setConfigFileName(configNameInput.value);
-
-      const handleFolderPathEvent = (e) => setFolderPath(e.target.value);
-      const handleConfigNameEvent = (e) => setConfigFileName(e.target.value);
-      folderPathInput.addEventListener(hiddenInputEvent, handleFolderPathEvent);
-      configNameInput.addEventListener(hiddenInputEvent, handleConfigNameEvent);
-
-      return () => {
-         folderPathInput.removeEventListener(hiddenInputEvent, handleFolderPathEvent);
-         configNameInput.removeEventListener(hiddenInputEvent, handleConfigNameEvent);
-      };
-   }, []);
+   const {
+      assetsFolderPath,
+      assetsFolderObj,
+      setAssetsFolderObj,
+      configJsonName,
+   } = React.useContext(AppContext);
 
    const validateSelectedFolder = async (folder, configFileName) => {
       if (folder && configFileName) {
@@ -51,15 +38,14 @@ function AssetSettings({ closeModal, setAssetsFolderObj, folderObj, setFolderObj
    };
 
    React.useEffect(() => {
-      validateSelectedFolder(folderObj, configFileName);
-   }, [folderObj, configFileName]);
+      validateSelectedFolder(assetsFolderObj, configJsonName);
+   }, [assetsFolderObj, configJsonName]);
 
    const selectFolder = async () => {
       const folder = await fs.getFolder();
       if (folder) {
          setMessage({ type: 'success', content: 'Successfully updated assets folder.' });
          setAssetsFolderObj(folder);
-         setFolderObj(folder);
       } else {
          setMessage({ type: 'warning', content: 'Select operation was cancelled by user.' });
       }
@@ -79,7 +65,7 @@ function AssetSettings({ closeModal, setAssetsFolderObj, folderObj, setFolderObj
          <input
             type="text"
             uxp-quiet="true"
-            value={folderPath}
+            value={assetsFolderPath}
             onKeyDown={handleKeyDown}
             readOnly
          />
@@ -87,7 +73,7 @@ function AssetSettings({ closeModal, setAssetsFolderObj, folderObj, setFolderObj
          {messageContent && <p className={`settings-${messageType}`}>{messageContent}</p>}
 
          <footer>
-            <button onClick={closeModal} uxp-variant="secondary" uxp-quiet="true">
+            <button onClick={closeDialog} uxp-variant="secondary" uxp-quiet="true">
                Close
             </button>
             <button uxp-variant="cta" type="submit" onClick={selectFolder}>

@@ -7,7 +7,7 @@ const AssetGallery = require('./asset-gallery/asset-gallery.component.jsx');
 const SettingsButton = require('./settings/settings.component.jsx');
 
 const getDimensionsOnResize = require('../hooks/getDimensionsOnResize.js');
-const loadCategoriesFromFile = require('../utils/loadCategoriesFromFile.js');
+const loadAssetDataFromFile = require('../utils/loadAssetDataFromFile.js');
 
 require('./asset-view.styles.css');
 
@@ -32,7 +32,7 @@ function AssetView() {
    };
 
    const loadCategories = async (assetsFolderObj) => {
-      const response = await loadCategoriesFromFile(assetsFolderObj, 'categories.json');
+      const response = await loadAssetDataFromFile(assetsFolderObj, 'categories.json');
 
       console.log({ response });
 
@@ -71,6 +71,7 @@ function AssetView() {
          value={{
             categories: { main: mainCategories, sub: subCategories },
             assetsFolderPath,
+            assetsFolderObj,
             setAssetsFolderObj,
             setCategories,
             configJsonName,

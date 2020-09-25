@@ -1,13 +1,19 @@
 const React = require('react');
 const ReactDOM = require('react-dom');
 
+const useCreateDialog = require('../../hooks/useCreateDialog.js');
+
 require('./add-category-modal.styles.css');
 
 const CHAR_LIMIT = 36;
 
-function AddCategoryModal({ title, dialog, handleCreation }) {
+function AddCategoryModal({ isOpen, onClose, title, handleCreation }) {
+   if (!isOpen) return null;
+
    const [name, setName] = React.useState('');
    const [warningMessage, setWarningMessage] = React.useState('');
+
+   const [dialog, closeDialog] = useCreateDialog(onClose);
 
    const onInputChange = (e) => {
       const value = e.target.value;
@@ -19,23 +25,18 @@ function AddCategoryModal({ title, dialog, handleCreation }) {
          return setWarningMessage('Please specify a name for the category.');
       } else {
          handleCreation && handleCreation(name);
-         closeModal();
+         closeDialog();
       }
    };
 
    const handleKeyDown = (e) => {
       const enterKeyCode = 13;
-
       if (e.keyCode == enterKeyCode) {
          handleCreate();
       }
    };
 
-   const closeModal = () => {
-      dialog.close();
-   };
-
-   return (
+   return ReactDOM.createPortal(
       <div className="acm-wrapper">
          <div className="acm-header">
             <p className="acm-title">Create {title}</p>
@@ -48,35 +49,36 @@ function AddCategoryModal({ title, dialog, handleCreation }) {
          {warningMessage && <p className="acm-warning">{warningMessage}</p>}
 
          <footer>
-            <button uxp-variant="primary" onClick={closeModal}>
+            <button uxp-variant="primary" onClick={closeDialog}>
                Cancel
             </button>
             <button type="submit" uxp-variant="cta" onClick={handleCreate}>
                Create
             </button>
          </footer>
-      </div>
+      </div>,
+      dialog
    );
 }
 
 function AddCategoryButton({ modalTitle, handleCreateCategory }) {
-   const onClick = () => {
-      const dialog = document.createElement('dialog');
-      ReactDOM.render(
-         <AddCategoryModal
-            title={modalTitle}
-            dialog={dialog}
-            handleCreation={handleCreateCategory}
-         />,
-         dialog
-      );
-      document.body.appendChild(dialog).showModal();
-   };
+   const [isOpen, setIsOpen] = React.useState(false);
+
+   const onClick = () => setIsOpen(true);
+   const onClose = () => setIsOpen(false);
 
    return (
-      <button uxp-variant="action" onClick={onClick} title={`Add ${modalTitle}`}>
-         <img src="/assets/plus-math-b-96.png" />
-      </button>
+      <div>
+         <button uxp-variant="action" onClick={onClick} title={`Add ${modalTitle}`}>
+            <img src="/assets/plus-math-b-96.png" />
+         </button>
+         <AddCategoryModal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={modalTitle}
+            handleCreation={handleCreateCategory}
+         />
+      </div>
    );
 }
 

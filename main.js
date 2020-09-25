@@ -29808,17 +29808,22 @@ const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
 const ReactDOM = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
 
+const useCreateDialog = __webpack_require__(/*! ../../hooks/useCreateDialog.js */ "./src/hooks/useCreateDialog.js");
+
 __webpack_require__(/*! ./add-category-modal.styles.css */ "./src/components/add-category-modal/add-category-modal.styles.css");
 
 const CHAR_LIMIT = 36;
 
 function AddCategoryModal({
+  isOpen,
+  onClose,
   title,
-  dialog,
   handleCreation
 }) {
+  if (!isOpen) return null;
   const [name, setName] = React.useState('');
   const [warningMessage, setWarningMessage] = React.useState('');
+  const [dialog, closeDialog] = useCreateDialog(onClose);
 
   const onInputChange = e => {
     const value = e.target.value;
@@ -29830,7 +29835,7 @@ function AddCategoryModal({
       return setWarningMessage('Please specify a name for the category.');
     } else {
       handleCreation && handleCreation(name);
-      closeModal();
+      closeDialog();
     }
   };
 
@@ -29842,11 +29847,7 @@ function AddCategoryModal({
     }
   };
 
-  const closeModal = () => {
-    dialog.close();
-  };
-
-  return React.createElement("div", {
+  return ReactDOM.createPortal(React.createElement("div", {
     className: "acm-wrapper"
   }, React.createElement("div", {
     className: "acm-header"
@@ -29862,34 +29863,35 @@ function AddCategoryModal({
     className: "acm-warning"
   }, warningMessage), React.createElement("footer", null, React.createElement("button", {
     "uxp-variant": "primary",
-    onClick: closeModal
+    onClick: closeDialog
   }, "Cancel"), React.createElement("button", {
     type: "submit",
     "uxp-variant": "cta",
     onClick: handleCreate
-  }, "Create")));
+  }, "Create"))), dialog);
 }
 
 function AddCategoryButton({
   modalTitle,
   handleCreateCategory
 }) {
-  const onClick = () => {
-    const dialog = document.createElement('dialog');
-    ReactDOM.render(React.createElement(AddCategoryModal, {
-      title: modalTitle,
-      dialog: dialog,
-      handleCreation: handleCreateCategory
-    }), dialog);
-    document.body.appendChild(dialog).showModal();
-  };
+  const [isOpen, setIsOpen] = React.useState(false);
 
-  return React.createElement("button", {
+  const onClick = () => setIsOpen(true);
+
+  const onClose = () => setIsOpen(false);
+
+  return React.createElement("div", null, React.createElement("button", {
     "uxp-variant": "action",
     onClick: onClick,
     title: `Add ${modalTitle}`
   }, React.createElement("img", {
     src: "/assets/plus-math-b-96.png"
+  })), React.createElement(AddCategoryModal, {
+    isOpen: isOpen,
+    onClose: onClose,
+    title: modalTitle,
+    handleCreation: handleCreateCategory
   }));
 }
 
@@ -30201,7 +30203,7 @@ const SettingsButton = __webpack_require__(/*! ./settings/settings.component.jsx
 
 const getDimensionsOnResize = __webpack_require__(/*! ../hooks/getDimensionsOnResize.js */ "./src/hooks/getDimensionsOnResize.js");
 
-const loadCategoriesFromFile = __webpack_require__(/*! ../utils/loadCategoriesFromFile.js */ "./src/utils/loadCategoriesFromFile.js");
+const loadAssetDataFromFile = __webpack_require__(/*! ../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
 
 __webpack_require__(/*! ./asset-view.styles.css */ "./src/components/asset-view.styles.css");
 
@@ -30224,7 +30226,7 @@ function AssetView() {
   };
 
   const loadCategories = async assetsFolderObj => {
-    const response = await loadCategoriesFromFile(assetsFolderObj, 'categories.json');
+    const response = await loadAssetDataFromFile(assetsFolderObj, 'categories.json');
     console.log({
       response
     });
@@ -30266,6 +30268,7 @@ function AssetView() {
         sub: subCategories
       },
       assetsFolderPath,
+      assetsFolderObj,
       setAssetsFolderObj,
       setCategories,
       configJsonName,
@@ -30478,21 +30481,13 @@ const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
 const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
 
+const AppContext = __webpack_require__(/*! ../../context/appContext.js */ "./src/context/appContext.js");
+
 const loadAssetDataFromFile = __webpack_require__(/*! ../../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
 
-const {
-  hiddenInputIds,
-  hiddenInputEvent
-} = __webpack_require__(/*! ./hidden-input.data.js */ "./src/components/settings/hidden-input.data.js");
-
 function AssetSettings({
-  closeModal,
-  setAssetsFolderObj,
-  folderObj,
-  setFolderObj
+  closeDialog
 }) {
-  const [folderPath, setFolderPath] = React.useState('');
-  const [configFileName, setConfigFileName] = React.useState('');
   const [message, setMessage] = React.useState({
     type: 'warning',
     content: ''
@@ -30501,23 +30496,12 @@ function AssetSettings({
     content: messageContent,
     type: messageType
   } = message;
-  React.useEffect(() => {
-    const folderPathInput = document.getElementById(hiddenInputIds.ASSETS_FOLDER_PATH);
-    const configNameInput = document.getElementById(hiddenInputIds.CONFIG_FILE_NAME);
-    setFolderPath(folderPathInput.value);
-    setConfigFileName(configNameInput.value);
-
-    const handleFolderPathEvent = e => setFolderPath(e.target.value);
-
-    const handleConfigNameEvent = e => setConfigFileName(e.target.value);
-
-    folderPathInput.addEventListener(hiddenInputEvent, handleFolderPathEvent);
-    configNameInput.addEventListener(hiddenInputEvent, handleConfigNameEvent);
-    return () => {
-      folderPathInput.removeEventListener(hiddenInputEvent, handleFolderPathEvent);
-      configNameInput.removeEventListener(hiddenInputEvent, handleConfigNameEvent);
-    };
-  }, []);
+  const {
+    assetsFolderPath,
+    assetsFolderObj,
+    setAssetsFolderObj,
+    configJsonName
+  } = React.useContext(AppContext);
 
   const validateSelectedFolder = async (folder, configFileName) => {
     if (folder && configFileName) {
@@ -30542,8 +30526,8 @@ function AssetSettings({
   };
 
   React.useEffect(() => {
-    validateSelectedFolder(folderObj, configFileName);
-  }, [folderObj, configFileName]);
+    validateSelectedFolder(assetsFolderObj, configJsonName);
+  }, [assetsFolderObj, configJsonName]);
 
   const selectFolder = async () => {
     const folder = await fs.getFolder();
@@ -30554,7 +30538,6 @@ function AssetSettings({
         content: 'Successfully updated assets folder.'
       });
       setAssetsFolderObj(folder);
-      setFolderObj(folder);
     } else {
       setMessage({
         type: 'warning',
@@ -30578,13 +30561,13 @@ function AssetSettings({
   }, "Your assets are being imported from:"), React.createElement("input", {
     type: "text",
     "uxp-quiet": "true",
-    value: folderPath,
+    value: assetsFolderPath,
     onKeyDown: handleKeyDown,
     readOnly: true
   }), messageContent && React.createElement("p", {
     className: `settings-${messageType}`
   }, messageContent), React.createElement("footer", null, React.createElement("button", {
-    onClick: closeModal,
+    onClick: closeDialog,
     "uxp-variant": "secondary",
     "uxp-quiet": "true"
   }, "Close"), React.createElement("button", {
@@ -30607,29 +30590,21 @@ module.exports = AssetSettings;
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
-const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
-
-const {
-  hiddenInputIds,
-  hiddenInputEvent
-} = __webpack_require__(/*! ./hidden-input.data.js */ "./src/components/settings/hidden-input.data.js");
+const AppContext = __webpack_require__(/*! ../../context/appContext.js */ "./src/context/appContext.js");
 
 function ConfigSettings({
-  closeModal,
-  setConfigJsonName
+  closeDialog
 }) {
   const [fileName, setFileName] = React.useState('');
+  const [isInputReadOnly, setInputReadOnly] = React.useState(true);
   const [warningMessage, setWarningMessage] = React.useState('');
   const [successMessage, setSuccessMessage] = React.useState('');
-  const [isInputReadOnly, setInputReadOnly] = React.useState(true);
+  const {
+    configJsonName,
+    setConfigJsonName
+  } = React.useContext(AppContext);
   React.useEffect(() => {
-    const hiddenInput = document.getElementById(hiddenInputIds.CONFIG_FILE_NAME);
-    setFileName(hiddenInput.value);
-
-    const handleHiddenInputEvent = e => setFileName(e.target.value);
-
-    hiddenInput.addEventListener(hiddenInputEvent, handleHiddenInputEvent);
-    return () => hiddenInput.removeEventListener(hiddenInputEvent, handleHiddenInputEvent);
+    setFileName(configJsonName);
   }, []);
 
   const saveChanges = () => {
@@ -30685,7 +30660,7 @@ function ConfigSettings({
   }, successMessage), warningMessage && React.createElement("p", {
     className: "settings-warning"
   }, warningMessage), React.createElement("footer", null, React.createElement("button", {
-    onClick: closeModal,
+    onClick: closeDialog,
     "uxp-variant": "secondary",
     "uxp-quiet": "true"
   }, "Close"), React.createElement("button", {
@@ -30696,25 +30671,6 @@ function ConfigSettings({
 }
 
 module.exports = ConfigSettings;
-
-/***/ }),
-
-/***/ "./src/components/settings/hidden-input.data.js":
-/*!******************************************************!*\
-  !*** ./src/components/settings/hidden-input.data.js ***!
-  \******************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-const hiddenInputIds = {
-  ASSETS_FOLDER_PATH: 'settings--assets-folder-path',
-  CONFIG_FILE_NAME: 'settings--config-file-name'
-};
-const hiddenInputEvent = 'hidden-input';
-module.exports = {
-  hiddenInputIds,
-  hiddenInputEvent
-};
 
 /***/ }),
 
@@ -30729,18 +30685,11 @@ const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
 const ReactDOM = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
 
-const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
-
-const AppContext = __webpack_require__(/*! ../../context/appContext.js */ "./src/context/appContext.js");
-
 const AssetSettings = __webpack_require__(/*! ./asset-settings.component.jsx */ "./src/components/settings/asset-settings.component.jsx");
 
 const ConfigSettings = __webpack_require__(/*! ./config-settings.component.jsx */ "./src/components/settings/config-settings.component.jsx");
 
-const {
-  hiddenInputIds,
-  hiddenInputEvent
-} = __webpack_require__(/*! ./hidden-input.data.js */ "./src/components/settings/hidden-input.data.js");
+const useCreateDialog = __webpack_require__(/*! ../../hooks/useCreateDialog.js */ "./src/hooks/useCreateDialog.js");
 
 __webpack_require__(/*! ./settings.styles.css */ "./src/components/settings/settings.styles.css");
 
@@ -30751,18 +30700,18 @@ const TABS = {
 const tabList = Object.values(TABS);
 
 function SettingsModal({
-  closeModal,
-  setAssetsFolderObj,
-  setConfigJsonName
+  isOpen,
+  onClose
 }) {
+  if (!isOpen) return null;
   const [selectedTab, setSelectedTab] = React.useState(tabList[0]);
-  const [folderObj, setFolderObj] = React.useState({});
+  const [dialog, closeDialog] = useCreateDialog(onClose);
 
   const handleSelectTab = tabName => {
     setSelectedTab(tabName);
   };
 
-  return React.createElement("div", {
+  return ReactDOM.createPortal(React.createElement("div", {
     className: "settings-modal-wrapper"
   }, React.createElement("div", {
     className: "settings-header"
@@ -30782,84 +30731,27 @@ function SettingsModal({
   }, tab))), React.createElement("div", {
     className: "settings-modal-main"
   }, selectedTab === TABS.ASSETS && React.createElement(AssetSettings, {
-    closeModal: closeModal,
-    setAssetsFolderObj: setAssetsFolderObj,
-    folderObj: folderObj,
-    setFolderObj: setFolderObj
+    closeDialog: closeDialog
   }), selectedTab === TABS.CONFIG && React.createElement(ConfigSettings, {
-    closeModal: closeModal,
-    setConfigJsonName: setConfigJsonName
-  }))));
+    closeDialog: closeDialog
+  })))), dialog);
 }
 
 function SettingsButton() {
-  const {
-    assetsFolderPath,
-    setAssetsFolderObj,
-    setCategories,
-    configJsonName,
-    setConfigJsonName
-  } = React.useContext(AppContext);
-  const [isDialogRendered, toggleIsRendered] = React.useState(false);
-  React.useEffect(() => {
-    if (!isDialogRendered) return;
-    const customEvent = new Event(hiddenInputEvent);
-    const hiddenInput = document.getElementById(hiddenInputIds.ASSETS_FOLDER_PATH);
-    hiddenInput.setAttribute('value', assetsFolderPath);
-    hiddenInput.dispatchEvent(customEvent);
-  }, [isDialogRendered, assetsFolderPath]);
-  React.useEffect(() => {
-    if (!isDialogRendered) return;
-    const customEvent = new Event(hiddenInputEvent);
-    const hiddenInput = document.getElementById(hiddenInputIds.CONFIG_FILE_NAME);
-    hiddenInput.setAttribute('value', configJsonName);
-    hiddenInput.dispatchEvent(customEvent);
-  }, [isDialogRendered, configJsonName]);
+  const [isOpen, setIsOpen] = React.useState(false);
 
-  const onClick = () => {
-    let dialog;
-    const settingsDialog = document.getElementById('settings-dialog');
+  const onClick = () => setIsOpen(true);
 
-    if (!settingsDialog) {
-      dialog = document.createElement('dialog');
-      dialog.id = 'settings-dialog';
-
-      const closeModal = () => {
-        dialog.close();
-        toggleIsRendered(false);
-      };
-
-      dialog.onclose = closeModal;
-      ReactDOM.render(React.createElement(SettingsModal, {
-        closeModal: closeModal,
-        setAssetsFolderObj: setAssetsFolderObj,
-        configJsonName: configJsonName,
-        setConfigJsonName: setConfigJsonName
-      }), dialog);
-      document.body.appendChild(dialog);
-    } else {
-      dialog = settingsDialog;
-    }
-
-    dialog.showModal();
-    toggleIsRendered(true);
-  };
+  const onClose = () => setIsOpen(false);
 
   return React.createElement("div", null, React.createElement("button", {
     "uxp-variant": "action",
     onClick: onClick
   }, React.createElement("img", {
     src: "/assets/settings-flat-144.png"
-  })), React.createElement("input", {
-    type: "hidden",
-    className: "hidden-input",
-    id: hiddenInputIds.ASSETS_FOLDER_PATH,
-    value: assetsFolderPath
-  }), React.createElement("input", {
-    type: "hidden",
-    className: "hidden-input",
-    id: hiddenInputIds.CONFIG_FILE_NAME,
-    value: configJsonName
+  })), React.createElement(SettingsModal, {
+    isOpen: isOpen,
+    onClose: onClose
   }));
 }
 
@@ -30932,6 +30824,41 @@ const getElementDimesions = ref => {
 };
 
 module.exports = getElementDimesions;
+
+/***/ }),
+
+/***/ "./src/hooks/useCreateDialog.js":
+/*!**************************************!*\
+  !*** ./src/hooks/useCreateDialog.js ***!
+  \**************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+const DIALOG_ROOT = document.body;
+
+const useCreateDialog = handleModalClose => {
+  const {
+    current: dialog
+  } = React.useRef(document.createElement('dialog'));
+
+  dialog.oncancel = () => handleModalClose && handleModalClose();
+
+  const closeDialog = () => {
+    dialog.close();
+    handleModalClose && handleModalClose();
+  };
+
+  React.useEffect(() => {
+    DIALOG_ROOT.appendChild(dialog);
+    dialog.showModal().then(() => DIALOG_ROOT.removeChild(dialog));
+    return () => DIALOG_ROOT.removeChild(dialog);
+  }, []);
+  return [dialog, closeDialog];
+};
+
+module.exports = useCreateDialog;
 
 /***/ }),
 
@@ -31013,9 +30940,6 @@ if (window.HTMLIFrameElement == null) {
 const handledragFilesToCanvas = (e, thingsToDrag) => {
   if (thingsToDrag.length > 0) {
     e.dataTransfer.dropEffect = 'copy';
-    console.log({
-      thingsToDrag
-    });
     const data = Array.isArray(thingsToDrag) ? thingsToDrag.join('\n') : thingsToDrag;
     e.dataTransfer.setData('text/uri-list', data);
   }
@@ -31070,54 +30994,6 @@ async function loadAssetDataFromFile(folderObject, fileName) {
 }
 
 module.exports = loadAssetDataFromFile;
-
-/***/ }),
-
-/***/ "./src/utils/loadCategoriesFromFile.js":
-/*!*********************************************!*\
-  !*** ./src/utils/loadCategoriesFromFile.js ***!
-  \*********************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-async function loadCategoriesFromFile(folderObject, fileName) {
-  let categoriesJson;
-
-  try {
-    categoriesJson = await folderObject.getEntry(fileName);
-  } catch (err) {
-    console.log(`Couldn't locate your categories file`);
-    return {
-      status: 'error',
-      data: {
-        title: "Couldn't locate your categories file",
-        body: `The plugin was unable to locate your ${fileName}. Please check the directory and try again.`
-      }
-    };
-  }
-
-  let categoriesFromJson;
-
-  try {
-    categoriesFromJson = JSON.parse(await categoriesJson.read());
-  } catch (err) {
-    console.log(`Couldn't load your categories`);
-    return {
-      status: 'error',
-      data: {
-        title: "Couldn't load your categories",
-        body: `The plugin was unable to parse ${fileName}. Please check the file and try again.`
-      }
-    };
-  }
-
-  return {
-    status: 'success',
-    data: categoriesFromJson
-  };
-}
-
-module.exports = loadCategoriesFromFile;
 
 /***/ }),
 
