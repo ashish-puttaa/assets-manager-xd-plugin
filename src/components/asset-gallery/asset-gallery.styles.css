@@ -1,0 +1,25 @@
+.ag-wrapper {
+   margin-top: 20px;
+}
+
+.ag-assets {
+   display: flex;
+   flex-wrap: wrap;
+}
+
+.ag-search {
+   position: relative;
+}
+
+.ag-search-icon {
+   width: 20px;
+   height: 20px;
+   position: absolute;
+   right: 15px;
+   top: 50%;
+   transform: translateY(-50%);
+}
+
+.ag-search-icon img {
+   width: 100%;
+}

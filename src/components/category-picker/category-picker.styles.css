@@ -1,0 +1,13 @@
+.cp-header {
+   display: flex;
+   justify-content: space-between;
+   align-items: flex-end;
+}
+
+.cp-header h2 {
+   color: #777;
+}
+
+.cp-btn {
+   margin-bottom: -7px;
+}

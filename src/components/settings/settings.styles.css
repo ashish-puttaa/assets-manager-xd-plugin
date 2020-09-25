@@ -1,0 +1,78 @@
+.settings-header {
+   display: flex;
+   align-items: center;
+   margin-bottom: 15px;
+}
+
+.settings-title-icon {
+   width: 25px;
+}
+
+.settings-title-icon img {
+   height: 100%;
+   width: 100%;
+}
+
+.settings-modal-panes {
+   width: 550;
+   height: 210px;
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+}
+
+.settings-modal-side {
+   flex-basis: 120px;
+   padding-right: 20px;
+   margin-right: 20px;
+   height: 100%;
+   border-right: 1px solid #eaeaea;
+}
+
+.settings-modal-main {
+   flex-grow: 1;
+   height: 100%;
+   display: flex;
+   flex-direction: column;
+}
+
+.settings-modal-main footer {
+   margin-top: auto;
+}
+
+.hidden-input {
+   visibility: hidden;
+   position: absolute;
+}
+
+.settings-modal-title {
+   padding-bottom: 10px;
+}
+
+.settings-error {
+   color: #ff0000;
+   font-size: 12px;
+   font-weight: bold;
+}
+
+.settings-warning {
+   color: orange;
+   font-size: 12px;
+   font-weight: bold;
+}
+
+.settings-success {
+   color: #2ecc71;
+   font-size: 12px;
+   font-weight: bold;
+}
+
+/* Config Settings */
+
+.settings--config-input-wrapper {
+   display: flex;
+}
+
+.settings--config-input-wrapper input {
+   flex: 1;
+}

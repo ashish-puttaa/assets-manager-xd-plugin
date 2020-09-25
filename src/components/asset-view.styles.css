@@ -1,0 +1,24 @@
+.app-wrapper {
+   position: relative;
+}
+
+.sb-wrapper {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   margin-bottom: 10px;
+}
+
+.app-options {
+   height: 270px;
+}
+
+.update-list {
+   display: flex;
+   justify-content: flex-end;
+}
+
+.app-categories-header {
+   display: flex;
+   justify-content: space-between;
+}
