@@ -1,12 +1,19 @@
 const reactShim = require('../react-shim');
-const AssetView = require('./asset-view.jsx');
+const App = require('./asset-view.jsx');
 const React = require('react');
 const ReactDOM = require('react-dom');
+
+const GlobalState = require('../context/globalState.jsx');
 
 const panel = document.createElement('div');
 
 function show(event) {
-   ReactDOM.render(<AssetView />, panel);
+   ReactDOM.render(
+      <GlobalState>
+         <App />
+      </GlobalState>,
+      panel
+   );
    event.node.appendChild(panel);
 }
 

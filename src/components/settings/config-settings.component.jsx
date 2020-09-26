@@ -1,6 +1,7 @@
 const React = require('react');
 
-const AppContext = require('../../context/appContext.js');
+const { useGlobalState } = require('../../context/globalState.jsx');
+const { setConfigJsonName } = require('../../context/settings/settings.actions.js');
 
 function ConfigSettings({ closeDialog }) {
    const [fileName, setFileName] = React.useState('');
@@ -9,7 +10,8 @@ function ConfigSettings({ closeDialog }) {
    const [warningMessage, setWarningMessage] = React.useState('');
    const [successMessage, setSuccessMessage] = React.useState('');
 
-   const { configJsonName, setConfigJsonName } = React.useContext(AppContext);
+   const [{ settings }, dispatch] = useGlobalState();
+   const { configJsonName } = settings;
 
    React.useEffect(() => {
       setFileName(configJsonName);
@@ -20,7 +22,7 @@ function ConfigSettings({ closeDialog }) {
          setSuccessMessage('');
          return setWarningMessage('File name cannot be empty.');
       }
-      fileName && setConfigJsonName(fileName);
+      setConfigJsonName(dispatch, fileName);
       setInputReadOnly(true);
       setSuccessMessage('Successfully saved changes.');
    };

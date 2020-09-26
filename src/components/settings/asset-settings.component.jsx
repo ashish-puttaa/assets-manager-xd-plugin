@@ -1,19 +1,17 @@
 const React = require('react');
 const fs = require('uxp').storage.localFileSystem;
 
-const AppContext = require('../../context/appContext.js');
 const loadAssetDataFromFile = require('../../utils/loadAssetDataFromFile.js');
+
+const { useGlobalState } = require('../../context/globalState.jsx');
+const { setAssetsFolderObj } = require('../../context/settings/settings.actions.js');
 
 function AssetSettings({ closeDialog }) {
    const [message, setMessage] = React.useState({ type: 'warning', content: '' });
    const { content: messageContent, type: messageType } = message;
 
-   const {
-      assetsFolderPath,
-      assetsFolderObj,
-      setAssetsFolderObj,
-      configJsonName,
-   } = React.useContext(AppContext);
+   const [{ settings }, dispatch] = useGlobalState();
+   const { assetsFolderPath, assetsFolderObj, configJsonName } = settings;
 
    const validateSelectedFolder = async (folder, configFileName) => {
       if (folder && configFileName) {
@@ -45,7 +43,7 @@ function AssetSettings({ closeDialog }) {
       const folder = await fs.getFolder();
       if (folder) {
          setMessage({ type: 'success', content: 'Successfully updated assets folder.' });
-         setAssetsFolderObj(folder);
+         setAssetsFolderObj(dispatch, folder);
       } else {
          setMessage({ type: 'warning', content: 'Select operation was cancelled by user.' });
       }

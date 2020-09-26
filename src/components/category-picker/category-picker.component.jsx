@@ -1,6 +1,6 @@
 const React = require('react');
 
-const watchValue = require('../../hooks/watchValue.js');
+const useWatchValue = require('../../hooks/useWatchValue.js');
 
 const AddCategoryButton = require('../add-category-modal/add-category-modal.component.jsx');
 
@@ -11,8 +11,6 @@ function CategoryPicker({ title, values = [], onChange }) {
    const [selected, setSelected] = React.useState('');
 
    React.useEffect(() => {
-      console.log('🔥', title, 'CP  Use Effect Before');
-
       setCategories(values);
       const selectedValue = values.length > 0 ? values[0] : '';
       onCategoryChange(selectedValue);
@@ -20,7 +18,7 @@ function CategoryPicker({ title, values = [], onChange }) {
 
    React.useEffect(() => {}, [values]);
 
-   watchValue(values, `${title} value`);
+   useWatchValue(values, `${title} value`);
 
    const onCategoryChange = (value) => {
       setSelected(value);
@@ -48,13 +46,19 @@ function CategoryPicker({ title, values = [], onChange }) {
             }
          </div>
 
-         <select onChange={(e) => onCategoryChange(e.target.value)} value={selected}>
-            {categories.map((item, i) => (
-               <option key={`${item}-${i}`} value={item}>
-                  {item}
-               </option>
-            ))}
-         </select>
+         {categories.length ? (
+            <select onChange={(e) => onCategoryChange(e.target.value)} value={selected}>
+               {categories.map((item, i) => (
+                  <option key={`${item}-${i}`} value={item}>
+                     {item}
+                  </option>
+               ))}
+            </select>
+         ) : (
+            <select disabled>
+               <option selected>No categories found.</option>
+            </select>
+         )}
 
          {selected && (
             <h3>

@@ -5,8 +5,6 @@ const handleDragFilesToCanvas = require('../../utils/handleDragFilesToCanvas.js'
 const AssetCard = require('../asset-card/asset-card.component.jsx');
 const { SELECT_TYPE } = AssetCard;
 
-const AppContext = require('../../context/appContext.js');
-
 require('./asset-gallery.styles.css');
 
 const folderUrl =
@@ -37,11 +35,7 @@ function AssetGallery() {
    const [assets, setAssets] = React.useState([]);
    const [selectedAssets, setSelectedAssets] = React.useState([]);
 
-   const { assetsFolder } = React.useContext(AppContext);
-
    React.useEffect(() => {
-      // const
-
       setAssets(imageUrls);
    }, []);
 

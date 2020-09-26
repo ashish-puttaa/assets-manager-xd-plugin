@@ -1,6 +1,6 @@
 const React = require('react');
 
-const getElementDimesions = (ref) => {
+const useDimensionsOnResize = (ref) => {
    const [panelDimensions, setPanelDimensions] = React.useState({});
 
    React.useEffect(() => {
@@ -13,4 +13,4 @@ const getElementDimesions = (ref) => {
    return panelDimensions;
 };
 
-module.exports = getElementDimesions;
+module.exports = useDimensionsOnResize;

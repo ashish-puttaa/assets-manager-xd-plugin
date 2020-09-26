@@ -1,0 +1,7 @@
+const SettingsActionTypes = {
+   SET_ASSETS_FOLDER_PATH: 'SET_ASSETS_FOLDER_PATH',
+   SET_ASSETS_FOLDER_OBJECT: 'SET_ASSETS_FOLDER_OBJECT',
+   SET_CONFIG_JSON_NAME: 'SET_CONFIG_JSON_NAME',
+};
+
+module.exports = SettingsActionTypes;

@@ -30031,8 +30031,6 @@ const {
   SELECT_TYPE
 } = AssetCard;
 
-const AppContext = __webpack_require__(/*! ../../context/appContext.js */ "./src/context/appContext.js");
-
 __webpack_require__(/*! ./asset-gallery.styles.css */ "./src/components/asset-gallery/asset-gallery.styles.css");
 
 const folderUrl = 'C:/Users/ashish/AppData/Local/Packages/Adobe.CC.XD_adky2gkssdxte/LocalState/develop/zoho-asset-manager';
@@ -30075,11 +30073,7 @@ const imageUrls = [{
 function AssetGallery() {
   const [assets, setAssets] = React.useState([]);
   const [selectedAssets, setSelectedAssets] = React.useState([]);
-  const {
-    assetsFolder
-  } = React.useContext(AppContext);
   React.useEffect(() => {
-    // const
     setAssets(imageUrls);
   }, []);
   React.useEffect(() => {
@@ -30201,35 +30195,43 @@ const AssetGallery = __webpack_require__(/*! ./asset-gallery/asset-gallery.compo
 
 const SettingsButton = __webpack_require__(/*! ./settings/settings.component.jsx */ "./src/components/settings/settings.component.jsx");
 
-const getDimensionsOnResize = __webpack_require__(/*! ../hooks/getDimensionsOnResize.js */ "./src/hooks/getDimensionsOnResize.js");
+const useDimensionsOnResize = __webpack_require__(/*! ../hooks/useDimensionsOnResize.js */ "./src/hooks/useDimensionsOnResize.js");
 
 const loadAssetDataFromFile = __webpack_require__(/*! ../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
 
+const {
+  useGlobalState
+} = __webpack_require__(/*! ../context/globalState.jsx */ "./src/context/globalState.jsx");
+
+const {
+  setAssetsFolderObj,
+  setAssetsFolderPath
+} = __webpack_require__(/*! ../context/settings/settings.actions.js */ "./src/context/settings/settings.actions.js");
+
 __webpack_require__(/*! ./asset-view.styles.css */ "./src/components/asset-view.styles.css");
 
-const AppContext = __webpack_require__(/*! ../context/appContext.js */ "./src/context/appContext.js");
-
-const DEFAULT_JSON = 'configuration.json';
-
-function AssetView() {
+function App() {
   const [mainCategories, setMainCategories] = React.useState([]);
   const [subCategories, setSubCategories] = React.useState([]);
   const [selectedMainCategory, setSelectedMainCategory] = React.useState('');
   const [selectedSubCategory, setSelectedSubCategory] = React.useState('');
-  const [assetsFolderPath, setAssetsFolderPath] = React.useState('');
-  const [assetsFolderObj, setAssetsFolderObj] = React.useState({});
-  const [configJsonName, setConfigJsonName] = React.useState(DEFAULT_JSON);
+  const [context, dispatch] = useGlobalState();
+  const {
+    settings
+  } = context;
+  const {
+    assetsFolderPath,
+    assetsFolderObj,
+    configJsonName
+  } = settings;
 
   const setCategories = jsonData => {
     setMainCategories(jsonData.main);
     setSubCategories(jsonData.sub);
   };
 
-  const loadCategories = async assetsFolderObj => {
-    const response = await loadAssetDataFromFile(assetsFolderObj, 'categories.json');
-    console.log({
-      response
-    });
+  const loadCategories = async (folderObj, jsonName) => {
+    const response = await loadAssetDataFromFile(folderObj, jsonName);
 
     if (response.status === 'success') {
       const {
@@ -30249,32 +30251,18 @@ function AssetView() {
   React.useEffect(() => {
     (async () => {
       const pluginDataFolder = await fs.getDataFolder();
-      setAssetsFolderObj(pluginDataFolder);
+      setAssetsFolderObj(dispatch, pluginDataFolder);
     })();
   }, []);
   React.useEffect(() => {
-    console.log('🔥 Asset Folder Use Effect');
     const filePath = assetsFolderObj.nativePath;
-    filePath && setAssetsFolderPath(assetsFolderObj.nativePath);
+    filePath && setAssetsFolderPath(dispatch, assetsFolderObj.nativePath);
     const assetsFolderExists = !!assetsFolderObj.nativePath;
-    assetsFolderExists && loadCategories(assetsFolderObj);
-  }, [assetsFolderObj]);
+    assetsFolderExists && loadCategories(assetsFolderObj, configJsonName);
+  }, [assetsFolderObj, configJsonName]);
   const wrapperRef = React.useRef();
-  const panelDimensions = getDimensionsOnResize(wrapperRef);
-  return React.createElement(AppContext.Provider, {
-    value: {
-      categories: {
-        main: mainCategories,
-        sub: subCategories
-      },
-      assetsFolderPath,
-      assetsFolderObj,
-      setAssetsFolderObj,
-      setCategories,
-      configJsonName,
-      setConfigJsonName
-    }
-  }, React.createElement("div", {
+  const panelDimensions = useDimensionsOnResize(wrapperRef);
+  return React.createElement("div", {
     className: "app-wrapper"
   }, React.createElement("div", {
     className: "sb-wrapper"
@@ -30304,10 +30292,10 @@ function AssetView() {
     "uxp-quiet": "true",
     value: assetsFolderPath,
     readOnly: true
-  })), configJsonName && React.createElement("p", null, "Json Name: ", configJsonName)));
+  })), configJsonName && React.createElement("p", null, "Json Name: ", configJsonName));
 }
 
-module.exports = AssetView;
+module.exports = App;
 
 /***/ }),
 
@@ -30350,7 +30338,7 @@ if(false) {}
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
-const watchValue = __webpack_require__(/*! ../../hooks/watchValue.js */ "./src/hooks/watchValue.js");
+const useWatchValue = __webpack_require__(/*! ../../hooks/useWatchValue.js */ "./src/hooks/useWatchValue.js");
 
 const AddCategoryButton = __webpack_require__(/*! ../add-category-modal/add-category-modal.component.jsx */ "./src/components/add-category-modal/add-category-modal.component.jsx");
 
@@ -30364,13 +30352,12 @@ function CategoryPicker({
   const [categories, setCategories] = React.useState([]);
   const [selected, setSelected] = React.useState('');
   React.useEffect(() => {
-    console.log('🔥', title, 'CP  Use Effect Before');
     setCategories(values);
     const selectedValue = values.length > 0 ? values[0] : '';
     onCategoryChange(selectedValue);
   }, [values]);
   React.useEffect(() => {}, [values]);
-  watchValue(values, `${title} value`);
+  useWatchValue(values, `${title} value`);
 
   const onCategoryChange = value => {
     setSelected(value);
@@ -30391,13 +30378,17 @@ function CategoryPicker({
   }, React.createElement(AddCategoryButton, {
     modalTitle: title,
     handleCreateCategory: handleCreateCategory
-  }))), React.createElement("select", {
+  }))), categories.length ? React.createElement("select", {
     onChange: e => onCategoryChange(e.target.value),
     value: selected
   }, categories.map((item, i) => React.createElement("option", {
     key: `${item}-${i}`,
     value: item
-  }, item))), selected && React.createElement("h3", null, "Selected ", title, ": ", selected));
+  }, item))) : React.createElement("select", {
+    disabled: true
+  }, React.createElement("option", {
+    selected: true
+  }, "No categories found.")), selected && React.createElement("h3", null, "Selected ", title, ": ", selected));
 }
 
 module.exports = CategoryPicker;
@@ -30443,16 +30434,18 @@ if(false) {}
 
 const reactShim = __webpack_require__(/*! ../react-shim */ "./src/react-shim.js");
 
-const AssetView = __webpack_require__(/*! ./asset-view.jsx */ "./src/components/asset-view.jsx");
+const App = __webpack_require__(/*! ./asset-view.jsx */ "./src/components/asset-view.jsx");
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
 const ReactDOM = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
 
+const GlobalState = __webpack_require__(/*! ../context/globalState.jsx */ "./src/context/globalState.jsx");
+
 const panel = document.createElement('div');
 
 function show(event) {
-  ReactDOM.render(React.createElement(AssetView, null), panel);
+  ReactDOM.render(React.createElement(GlobalState, null, React.createElement(App, null)), panel);
   event.node.appendChild(panel);
 }
 
@@ -30481,9 +30474,15 @@ const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
 const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
 
-const AppContext = __webpack_require__(/*! ../../context/appContext.js */ "./src/context/appContext.js");
-
 const loadAssetDataFromFile = __webpack_require__(/*! ../../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
+
+const {
+  useGlobalState
+} = __webpack_require__(/*! ../../context/globalState.jsx */ "./src/context/globalState.jsx");
+
+const {
+  setAssetsFolderObj
+} = __webpack_require__(/*! ../../context/settings/settings.actions.js */ "./src/context/settings/settings.actions.js");
 
 function AssetSettings({
   closeDialog
@@ -30496,12 +30495,14 @@ function AssetSettings({
     content: messageContent,
     type: messageType
   } = message;
+  const [{
+    settings
+  }, dispatch] = useGlobalState();
   const {
     assetsFolderPath,
     assetsFolderObj,
-    setAssetsFolderObj,
     configJsonName
-  } = React.useContext(AppContext);
+  } = settings;
 
   const validateSelectedFolder = async (folder, configFileName) => {
     if (folder && configFileName) {
@@ -30537,7 +30538,7 @@ function AssetSettings({
         type: 'success',
         content: 'Successfully updated assets folder.'
       });
-      setAssetsFolderObj(folder);
+      setAssetsFolderObj(dispatch, folder);
     } else {
       setMessage({
         type: 'warning',
@@ -30590,7 +30591,13 @@ module.exports = AssetSettings;
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
-const AppContext = __webpack_require__(/*! ../../context/appContext.js */ "./src/context/appContext.js");
+const {
+  useGlobalState
+} = __webpack_require__(/*! ../../context/globalState.jsx */ "./src/context/globalState.jsx");
+
+const {
+  setConfigJsonName
+} = __webpack_require__(/*! ../../context/settings/settings.actions.js */ "./src/context/settings/settings.actions.js");
 
 function ConfigSettings({
   closeDialog
@@ -30599,10 +30606,12 @@ function ConfigSettings({
   const [isInputReadOnly, setInputReadOnly] = React.useState(true);
   const [warningMessage, setWarningMessage] = React.useState('');
   const [successMessage, setSuccessMessage] = React.useState('');
+  const [{
+    settings
+  }, dispatch] = useGlobalState();
   const {
-    configJsonName,
-    setConfigJsonName
-  } = React.useContext(AppContext);
+    configJsonName
+  } = settings;
   React.useEffect(() => {
     setFileName(configJsonName);
   }, []);
@@ -30613,7 +30622,7 @@ function ConfigSettings({
       return setWarningMessage('File name cannot be empty.');
     }
 
-    fileName && setConfigJsonName(fileName);
+    setConfigJsonName(dispatch, fileName);
     setInputReadOnly(true);
     setSuccessMessage('Successfully saved changes.');
   };
@@ -30789,41 +30798,177 @@ if(false) {}
 
 /***/ }),
 
-/***/ "./src/context/appContext.js":
-/*!***********************************!*\
-  !*** ./src/context/appContext.js ***!
-  \***********************************/
+/***/ "./src/context/globalState.jsx":
+/*!*************************************!*\
+  !*** ./src/context/globalState.jsx ***!
+  \*************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
-const AppContext = React.createContext();
-module.exports = AppContext;
+const useCombinedReducers = __webpack_require__(/*! ../hooks/useCombinedReducers.js */ "./src/hooks/useCombinedReducers.js");
+
+const settingsReducer = __webpack_require__(/*! ./settings/settings.reducer.js */ "./src/context/settings/settings.reducer.js");
+
+const DispatchContext = React.createContext();
+const StateContext = React.createContext();
+
+function GlobalState({
+  children
+}) {
+  const [state, dispatch] = useCombinedReducers({
+    settings: React.useReducer(settingsReducer, settingsReducer.initialState)
+  });
+  return React.createElement(DispatchContext.Provider, {
+    value: dispatch
+  }, React.createElement(StateContext.Provider, {
+    value: state
+  }, children));
+}
+
+GlobalState.DispatchContext = DispatchContext;
+GlobalState.StateContext = StateContext;
+
+const useGlobalState = () => {
+  const dispatch = React.useContext(DispatchContext);
+  const context = React.useContext(StateContext);
+  return [context, dispatch];
+};
+
+GlobalState.useGlobalState = useGlobalState;
+module.exports = GlobalState;
 
 /***/ }),
 
-/***/ "./src/hooks/getDimensionsOnResize.js":
-/*!********************************************!*\
-  !*** ./src/hooks/getDimensionsOnResize.js ***!
-  \********************************************/
+/***/ "./src/context/settings/settings.actions.js":
+/*!**************************************************!*\
+  !*** ./src/context/settings/settings.actions.js ***!
+  \**************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+const SettingsActionTypes = __webpack_require__(/*! ./settings.types.js */ "./src/context/settings/settings.types.js");
 
-const getElementDimesions = ref => {
-  const [panelDimensions, setPanelDimensions] = React.useState({});
-  React.useEffect(() => {
-    ref.current.addEventListener('resize', e => {
-      const dimensions = e.target.getBoundingClientRect();
-      setPanelDimensions(dimensions);
-    });
-  }, []);
-  return panelDimensions;
+exports.setAssetsFolderPath = (dispatch, folderPath) => {
+  dispatch({
+    type: SettingsActionTypes.SET_ASSETS_FOLDER_PATH,
+    payload: folderPath
+  });
 };
 
-module.exports = getElementDimesions;
+exports.setAssetsFolderObj = (dispatch, folderObj) => {
+  dispatch({
+    type: SettingsActionTypes.SET_ASSETS_FOLDER_OBJECT,
+    payload: folderObj
+  });
+};
+
+exports.setConfigJsonName = (dispatch, fileName) => {
+  dispatch({
+    type: SettingsActionTypes.SET_CONFIG_JSON_NAME,
+    payload: fileName
+  });
+};
+
+/***/ }),
+
+/***/ "./src/context/settings/settings.reducer.js":
+/*!**************************************************!*\
+  !*** ./src/context/settings/settings.reducer.js ***!
+  \**************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const SettingsActionTypes = __webpack_require__(/*! ./settings.types.js */ "./src/context/settings/settings.types.js");
+
+const DEFAULT_JSON = 'config.json';
+const initialState = {
+  assetsFolderPath: '',
+  assetsFolderObj: {},
+  configJsonName: DEFAULT_JSON
+};
+
+const settingsReducer = (state, action) => {
+  switch (action.type) {
+    case SettingsActionTypes.SET_ASSETS_FOLDER_PATH:
+      return { ...state,
+        assetsFolderPath: action.payload
+      };
+
+    case SettingsActionTypes.SET_ASSETS_FOLDER_OBJECT:
+      return { ...state,
+        assetsFolderObj: action.payload
+      };
+
+    case SettingsActionTypes.SET_CONFIG_JSON_NAME:
+      return { ...state,
+        configJsonName: action.payload
+      };
+
+    default:
+      return state;
+  }
+};
+
+settingsReducer.initialState = initialState;
+module.exports = settingsReducer;
+
+/***/ }),
+
+/***/ "./src/context/settings/settings.types.js":
+/*!************************************************!*\
+  !*** ./src/context/settings/settings.types.js ***!
+  \************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+const SettingsActionTypes = {
+  SET_ASSETS_FOLDER_PATH: 'SET_ASSETS_FOLDER_PATH',
+  SET_ASSETS_FOLDER_OBJECT: 'SET_ASSETS_FOLDER_OBJECT',
+  SET_CONFIG_JSON_NAME: 'SET_CONFIG_JSON_NAME'
+};
+module.exports = SettingsActionTypes;
+
+/***/ }),
+
+/***/ "./src/hooks/useCombinedReducers.js":
+/*!******************************************!*\
+  !*** ./src/hooks/useCombinedReducers.js ***!
+  \******************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+const useCombinedReducers = combinedReducers => {
+  const state = Object.keys(combinedReducers).reduce((acc, key) => ({ ...acc,
+    [key]: combinedReducers[key][0]
+  }), {});
+
+  const dispatch = action => Object.keys(combinedReducers).map(key => combinedReducers[key][1]).forEach(fn => fn(action));
+
+  return [state, dispatch];
+};
+
+module.exports = useCombinedReducers;
+/*
+   EXAMPLE:
+
+   import React from 'react';
+   import useCombinedReducers from 'use-combined-reducers';
+
+   const App = () => {
+      const [state, dispatch] = useCombinedReducers({
+         user: React.useReducer(userReducer, userInitialState),
+         cart: React.useReducer(cartReducer, cartIntitialState),
+      });
+
+      const { user, cart } = state;
+
+      ...
+   }
+
+   export default App;
+*/
 
 /***/ }),
 
@@ -30862,10 +31007,34 @@ module.exports = useCreateDialog;
 
 /***/ }),
 
-/***/ "./src/hooks/watchValue.js":
-/*!*********************************!*\
-  !*** ./src/hooks/watchValue.js ***!
-  \*********************************/
+/***/ "./src/hooks/useDimensionsOnResize.js":
+/*!********************************************!*\
+  !*** ./src/hooks/useDimensionsOnResize.js ***!
+  \********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+const useDimensionsOnResize = ref => {
+  const [panelDimensions, setPanelDimensions] = React.useState({});
+  React.useEffect(() => {
+    ref.current.addEventListener('resize', e => {
+      const dimensions = e.target.getBoundingClientRect();
+      setPanelDimensions(dimensions);
+    });
+  }, []);
+  return panelDimensions;
+};
+
+module.exports = useDimensionsOnResize;
+
+/***/ }),
+
+/***/ "./src/hooks/useWatchValue.js":
+/*!************************************!*\
+  !*** ./src/hooks/useWatchValue.js ***!
+  \************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
