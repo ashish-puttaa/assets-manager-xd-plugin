@@ -19,7 +19,9 @@ function show(event) {
 
 function update(selection) {}
 
-function hide(event) {}
+function hide(event) {
+   event.node.removeChild(panel);
+}
 
 module.exports = {
    assetView: {
