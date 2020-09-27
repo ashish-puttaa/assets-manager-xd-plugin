@@ -55,8 +55,8 @@ function CategoryPicker({ title, values = [], onChange }) {
                ))}
             </select>
          ) : (
-            <select disabled>
-               <option selected>No categories found.</option>
+            <select value="novalue" disabled>
+               <option value="novalue">No categories found.</option>
             </select>
          )}
 

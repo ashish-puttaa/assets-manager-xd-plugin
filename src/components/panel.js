@@ -1,5 +1,5 @@
 const reactShim = require('../react-shim');
-const App = require('./asset-view.jsx');
+const App = require('./app.jsx');
 const React = require('react');
 const ReactDOM = require('react-dom');
 

@@ -15,7 +15,7 @@ const {
    setAssetsFolderPath,
 } = require('../context/settings/settings.actions.js');
 
-require('./asset-view.styles.css');
+require('./app.styles.css');
 
 function App() {
    const [mainCategories, setMainCategories] = React.useState([]);

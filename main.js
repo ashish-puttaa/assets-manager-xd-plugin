@@ -593,6 +593,25 @@ exports.push([module.i, ".acm-wrapper {\r\n   width: 360;\r\n}\r\n\r\n.acm-title
 
 /***/ }),
 
+/***/ "./node_modules/css-loader/index.js!./src/components/app.styles.css":
+/*!*****************************************************************!*\
+  !*** ./node_modules/css-loader!./src/components/app.styles.css ***!
+  \*****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(/*! ../../node_modules/css-loader/lib/css-base.js */ "./node_modules/css-loader/lib/css-base.js")(false);
+// imports
+
+
+// module
+exports.push([module.i, ".app-wrapper {\r\n   position: relative;\r\n}\r\n\r\n.sb-wrapper {\r\n   display: flex;\r\n   justify-content: space-between;\r\n   align-items: center;\r\n   margin-bottom: 10px;\r\n}\r\n\r\n.app-options {\r\n   height: 270px;\r\n}\r\n\r\n.update-list {\r\n   display: flex;\r\n   justify-content: flex-end;\r\n}\r\n\r\n.app-categories-header {\r\n   display: flex;\r\n   justify-content: space-between;\r\n}\r\n", ""]);
+
+// exports
+
+
+/***/ }),
+
 /***/ "./node_modules/css-loader/index.js!./src/components/asset-card/asset-card.styles.css":
 /*!***********************************************************************************!*\
   !*** ./node_modules/css-loader!./src/components/asset-card/asset-card.styles.css ***!
@@ -625,25 +644,6 @@ exports = module.exports = __webpack_require__(/*! ../../../node_modules/css-loa
 
 // module
 exports.push([module.i, ".ag-wrapper {\r\n   margin-top: 20px;\r\n}\r\n\r\n.ag-assets {\r\n   display: flex;\r\n   flex-wrap: wrap;\r\n}\r\n\r\n.ag-search {\r\n   position: relative;\r\n}\r\n\r\n.ag-search-icon {\r\n   width: 20px;\r\n   height: 20px;\r\n   position: absolute;\r\n   right: 15px;\r\n   top: 50%;\r\n   transform: translateY(-50%);\r\n}\r\n\r\n.ag-search-icon img {\r\n   width: 100%;\r\n}\r\n", ""]);
-
-// exports
-
-
-/***/ }),
-
-/***/ "./node_modules/css-loader/index.js!./src/components/asset-view.styles.css":
-/*!************************************************************************!*\
-  !*** ./node_modules/css-loader!./src/components/asset-view.styles.css ***!
-  \************************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-exports = module.exports = __webpack_require__(/*! ../../node_modules/css-loader/lib/css-base.js */ "./node_modules/css-loader/lib/css-base.js")(false);
-// imports
-
-
-// module
-exports.push([module.i, ".app-wrapper {\r\n   position: relative;\r\n}\r\n\r\n.sb-wrapper {\r\n   display: flex;\r\n   justify-content: space-between;\r\n   align-items: center;\r\n   margin-bottom: 10px;\r\n}\r\n\r\n.app-options {\r\n   height: 270px;\r\n}\r\n\r\n.update-list {\r\n   display: flex;\r\n   justify-content: flex-end;\r\n}\r\n\r\n.app-categories-header {\r\n   display: flex;\r\n   justify-content: space-between;\r\n}\r\n", ""]);
 
 // exports
 
@@ -29929,6 +29929,161 @@ if(false) {}
 
 /***/ }),
 
+/***/ "./src/components/app.jsx":
+/*!********************************!*\
+  !*** ./src/components/app.jsx ***!
+  \********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
+
+const {
+  error
+} = __webpack_require__(/*! ../../lib/dialogs.js */ "./lib/dialogs.js");
+
+const CategoryPicker = __webpack_require__(/*! ./category-picker/category-picker.component.jsx */ "./src/components/category-picker/category-picker.component.jsx");
+
+const AssetGallery = __webpack_require__(/*! ./asset-gallery/asset-gallery.component.jsx */ "./src/components/asset-gallery/asset-gallery.component.jsx");
+
+const SettingsButton = __webpack_require__(/*! ./settings/settings.component.jsx */ "./src/components/settings/settings.component.jsx");
+
+const useDimensionsOnResize = __webpack_require__(/*! ../hooks/useDimensionsOnResize.js */ "./src/hooks/useDimensionsOnResize.js");
+
+const loadAssetDataFromFile = __webpack_require__(/*! ../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
+
+const {
+  useGlobalState
+} = __webpack_require__(/*! ../context/globalState.jsx */ "./src/context/globalState.jsx");
+
+const {
+  setAssetsFolderObj,
+  setAssetsFolderPath
+} = __webpack_require__(/*! ../context/settings/settings.actions.js */ "./src/context/settings/settings.actions.js");
+
+__webpack_require__(/*! ./app.styles.css */ "./src/components/app.styles.css");
+
+function App() {
+  const [mainCategories, setMainCategories] = React.useState([]);
+  const [subCategories, setSubCategories] = React.useState([]);
+  const [selectedMainCategory, setSelectedMainCategory] = React.useState('');
+  const [selectedSubCategory, setSelectedSubCategory] = React.useState('');
+  const [context, dispatch] = useGlobalState();
+  const {
+    settings
+  } = context;
+  const {
+    assetsFolderPath,
+    assetsFolderObj,
+    configJsonName
+  } = settings;
+
+  const setCategories = jsonData => {
+    setMainCategories(jsonData.main);
+    setSubCategories(jsonData.sub);
+  };
+
+  const loadCategories = async (folderObj, jsonName) => {
+    const response = await loadAssetDataFromFile(folderObj, jsonName);
+
+    if (response.status === 'success') {
+      const {
+        data: jsonData
+      } = response;
+      setCategories(jsonData);
+    } else {
+      const {
+        data: errorData
+      } = response;
+      error(errorData.title, errorData.body);
+    }
+
+    return errorMessage;
+  };
+
+  React.useEffect(() => {
+    (async () => {
+      const pluginDataFolder = await fs.getDataFolder();
+      setAssetsFolderObj(dispatch, pluginDataFolder);
+    })();
+  }, []);
+  React.useEffect(() => {
+    const filePath = assetsFolderObj.nativePath;
+    filePath && setAssetsFolderPath(dispatch, assetsFolderObj.nativePath);
+    const assetsFolderExists = !!assetsFolderObj.nativePath;
+    assetsFolderExists && loadCategories(assetsFolderObj, configJsonName);
+  }, [assetsFolderObj, configJsonName]);
+  const wrapperRef = React.useRef();
+  const panelDimensions = useDimensionsOnResize(wrapperRef);
+  return React.createElement("div", {
+    className: "app-wrapper"
+  }, React.createElement("div", {
+    className: "sb-wrapper"
+  }, React.createElement("h1", null, "Asset Manager"), React.createElement(SettingsButton, {
+    className: "sb-button"
+  })), React.createElement("div", {
+    ref: wrapperRef,
+    className: "app-options"
+  }, React.createElement("div", {
+    className: "app-categories"
+  }, React.createElement("h2", null, "Select Categories :"), React.createElement(CategoryPicker, {
+    title: "Main Category",
+    values: mainCategories,
+    onChange: val => setSelectedMainCategory(val)
+  }), React.createElement(CategoryPicker, {
+    title: "Sub Category",
+    values: subCategories,
+    onChange: val => setSelectedSubCategory(val)
+  }), React.createElement("div", {
+    className: "update-list"
+  }, React.createElement("button", {
+    "uxp-variant": "cta"
+  }, "Update List"))), React.createElement("div", {
+    className: "asset-description"
+  })), React.createElement(AssetGallery, null), panelDimensions && React.createElement("p", null, "Panel size: ", panelDimensions.width, " x ", panelDimensions.height), assetsFolderPath && React.createElement("div", null, "Selected Folder:", React.createElement("input", {
+    type: "text",
+    "uxp-quiet": "true",
+    value: assetsFolderPath,
+    readOnly: true
+  })), configJsonName && React.createElement("p", null, "Json Name: ", configJsonName));
+}
+
+module.exports = App;
+
+/***/ }),
+
+/***/ "./src/components/app.styles.css":
+/*!***************************************!*\
+  !*** ./src/components/app.styles.css ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+var content = __webpack_require__(/*! !../../node_modules/css-loader!./app.styles.css */ "./node_modules/css-loader/index.js!./src/components/app.styles.css");
+
+if(typeof content === 'string') content = [[module.i, content, '']];
+
+var transform;
+var insertInto;
+
+
+
+var options = {"hmr":true}
+
+options.transform = transform
+options.insertInto = undefined;
+
+var update = __webpack_require__(/*! ../../node_modules/style-loader/lib/addStyles.js */ "./node_modules/style-loader/lib/addStyles.js")(content, options);
+
+if(content.locals) module.exports = content.locals;
+
+if(false) {}
+
+/***/ }),
+
 /***/ "./src/components/asset-card/asset-card.component.jsx":
 /*!************************************************************!*\
   !*** ./src/components/asset-card/asset-card.component.jsx ***!
@@ -30174,161 +30329,6 @@ if(false) {}
 
 /***/ }),
 
-/***/ "./src/components/asset-view.jsx":
-/*!***************************************!*\
-  !*** ./src/components/asset-view.jsx ***!
-  \***************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
-
-const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
-
-const {
-  error
-} = __webpack_require__(/*! ../../lib/dialogs.js */ "./lib/dialogs.js");
-
-const CategoryPicker = __webpack_require__(/*! ./category-picker/category-picker.component.jsx */ "./src/components/category-picker/category-picker.component.jsx");
-
-const AssetGallery = __webpack_require__(/*! ./asset-gallery/asset-gallery.component.jsx */ "./src/components/asset-gallery/asset-gallery.component.jsx");
-
-const SettingsButton = __webpack_require__(/*! ./settings/settings.component.jsx */ "./src/components/settings/settings.component.jsx");
-
-const useDimensionsOnResize = __webpack_require__(/*! ../hooks/useDimensionsOnResize.js */ "./src/hooks/useDimensionsOnResize.js");
-
-const loadAssetDataFromFile = __webpack_require__(/*! ../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
-
-const {
-  useGlobalState
-} = __webpack_require__(/*! ../context/globalState.jsx */ "./src/context/globalState.jsx");
-
-const {
-  setAssetsFolderObj,
-  setAssetsFolderPath
-} = __webpack_require__(/*! ../context/settings/settings.actions.js */ "./src/context/settings/settings.actions.js");
-
-__webpack_require__(/*! ./asset-view.styles.css */ "./src/components/asset-view.styles.css");
-
-function App() {
-  const [mainCategories, setMainCategories] = React.useState([]);
-  const [subCategories, setSubCategories] = React.useState([]);
-  const [selectedMainCategory, setSelectedMainCategory] = React.useState('');
-  const [selectedSubCategory, setSelectedSubCategory] = React.useState('');
-  const [context, dispatch] = useGlobalState();
-  const {
-    settings
-  } = context;
-  const {
-    assetsFolderPath,
-    assetsFolderObj,
-    configJsonName
-  } = settings;
-
-  const setCategories = jsonData => {
-    setMainCategories(jsonData.main);
-    setSubCategories(jsonData.sub);
-  };
-
-  const loadCategories = async (folderObj, jsonName) => {
-    const response = await loadAssetDataFromFile(folderObj, jsonName);
-
-    if (response.status === 'success') {
-      const {
-        data: jsonData
-      } = response;
-      setCategories(jsonData);
-    } else {
-      const {
-        data: errorData
-      } = response;
-      error(errorData.title, errorData.body);
-    }
-
-    return errorMessage;
-  };
-
-  React.useEffect(() => {
-    (async () => {
-      const pluginDataFolder = await fs.getDataFolder();
-      setAssetsFolderObj(dispatch, pluginDataFolder);
-    })();
-  }, []);
-  React.useEffect(() => {
-    const filePath = assetsFolderObj.nativePath;
-    filePath && setAssetsFolderPath(dispatch, assetsFolderObj.nativePath);
-    const assetsFolderExists = !!assetsFolderObj.nativePath;
-    assetsFolderExists && loadCategories(assetsFolderObj, configJsonName);
-  }, [assetsFolderObj, configJsonName]);
-  const wrapperRef = React.useRef();
-  const panelDimensions = useDimensionsOnResize(wrapperRef);
-  return React.createElement("div", {
-    className: "app-wrapper"
-  }, React.createElement("div", {
-    className: "sb-wrapper"
-  }, React.createElement("h1", null, "Asset Manager"), React.createElement(SettingsButton, {
-    className: "sb-button"
-  })), React.createElement("div", {
-    ref: wrapperRef,
-    className: "app-options"
-  }, React.createElement("div", {
-    className: "app-categories"
-  }, React.createElement("h2", null, "Select Categories :"), React.createElement(CategoryPicker, {
-    title: "Main Category",
-    values: mainCategories,
-    onChange: val => setSelectedMainCategory(val)
-  }), React.createElement(CategoryPicker, {
-    title: "Sub Category",
-    values: subCategories,
-    onChange: val => setSelectedSubCategory(val)
-  }), React.createElement("div", {
-    className: "update-list"
-  }, React.createElement("button", {
-    "uxp-variant": "cta"
-  }, "Update List"))), React.createElement("div", {
-    className: "asset-description"
-  })), React.createElement(AssetGallery, null), panelDimensions && React.createElement("p", null, "Panel size: ", panelDimensions.width, " x ", panelDimensions.height), assetsFolderPath && React.createElement("div", null, "Selected Folder:", React.createElement("input", {
-    type: "text",
-    "uxp-quiet": "true",
-    value: assetsFolderPath,
-    readOnly: true
-  })), configJsonName && React.createElement("p", null, "Json Name: ", configJsonName));
-}
-
-module.exports = App;
-
-/***/ }),
-
-/***/ "./src/components/asset-view.styles.css":
-/*!**********************************************!*\
-  !*** ./src/components/asset-view.styles.css ***!
-  \**********************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-
-var content = __webpack_require__(/*! !../../node_modules/css-loader!./asset-view.styles.css */ "./node_modules/css-loader/index.js!./src/components/asset-view.styles.css");
-
-if(typeof content === 'string') content = [[module.i, content, '']];
-
-var transform;
-var insertInto;
-
-
-
-var options = {"hmr":true}
-
-options.transform = transform
-options.insertInto = undefined;
-
-var update = __webpack_require__(/*! ../../node_modules/style-loader/lib/addStyles.js */ "./node_modules/style-loader/lib/addStyles.js")(content, options);
-
-if(content.locals) module.exports = content.locals;
-
-if(false) {}
-
-/***/ }),
-
 /***/ "./src/components/category-picker/category-picker.component.jsx":
 /*!**********************************************************************!*\
   !*** ./src/components/category-picker/category-picker.component.jsx ***!
@@ -30385,9 +30385,10 @@ function CategoryPicker({
     key: `${item}-${i}`,
     value: item
   }, item))) : React.createElement("select", {
+    value: "novalue",
     disabled: true
   }, React.createElement("option", {
-    selected: true
+    value: "novalue"
   }, "No categories found.")), selected && React.createElement("h3", null, "Selected ", title, ": ", selected));
 }
 
@@ -30434,7 +30435,7 @@ if(false) {}
 
 const reactShim = __webpack_require__(/*! ../react-shim */ "./src/react-shim.js");
 
-const App = __webpack_require__(/*! ./asset-view.jsx */ "./src/components/asset-view.jsx");
+const App = __webpack_require__(/*! ./app.jsx */ "./src/components/app.jsx");
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
