@@ -23,3 +23,16 @@
 .ag-search-icon img {
    width: 100%;
 }
+
+.ag-no-assets {
+   padding: 10px 2px;
+}
+
+.ag-no-assets p {
+   font-size: 13px;
+}
+
+.ag-no-assets h2 {
+   padding-top: 10px;
+   padding-bottom: 15px;
+}

@@ -76,25 +76,41 @@ function AssetGallery() {
          <h2>Asset Gallery :</h2>
 
          <div className="ag-search">
-            <input type="text" placeholder="Search..." style={{ paddingLeft: '100px' }} />
+            <input
+               type="text"
+               placeholder="Search..."
+               style={{ paddingLeft: '100px' }}
+               disabled={assets.length === 0}
+            />
             <div className="ag-search-icon">
                <img src="/assets/search-150.png" />
             </div>
          </div>
 
-         <div className="ag-assets" draggable onDragStartCapture={onDragStartCapture}>
-            {assets.map((item, i) => {
-               const isSelected = selectedAssets.some((el) => el.url === item.url);
+         <div className="ag-body">
+            {assets.length ? (
+               <div className="ag-assets" draggable onDragStartCapture={onDragStartCapture}>
+                  {assets.map((item, i) => {
+                     const isSelected = selectedAssets.some((el) => el.url === item.url);
 
-               return (
-                  <AssetCard
-                     url={item.url}
-                     key={i}
-                     selected={isSelected}
-                     handleSelect={handleSelect}
-                  />
-               );
-            })}
+                     return (
+                        <AssetCard
+                           url={item.url}
+                           key={i}
+                           selected={isSelected}
+                           handleSelect={handleSelect}
+                        />
+                     );
+                  })}
+               </div>
+            ) : (
+               <div className="ag-no-assets">
+                  <h2>No assets found.</h2>
+                  <p>Please open Settings and do the following:</p>
+                  <p>1. Select the Assets Folder Path.</p>
+                  <p>2. Enter the correct name for the config file.</p>
+               </div>
+            )}
          </div>
       </div>
    );

@@ -643,7 +643,7 @@ exports = module.exports = __webpack_require__(/*! ../../../node_modules/css-loa
 
 
 // module
-exports.push([module.i, ".ag-wrapper {\r\n   margin-top: 20px;\r\n}\r\n\r\n.ag-assets {\r\n   display: flex;\r\n   flex-wrap: wrap;\r\n}\r\n\r\n.ag-search {\r\n   position: relative;\r\n}\r\n\r\n.ag-search-icon {\r\n   width: 20px;\r\n   height: 20px;\r\n   position: absolute;\r\n   right: 15px;\r\n   top: 50%;\r\n   transform: translateY(-50%);\r\n}\r\n\r\n.ag-search-icon img {\r\n   width: 100%;\r\n}\r\n", ""]);
+exports.push([module.i, ".ag-wrapper {\r\n   margin-top: 20px;\r\n}\r\n\r\n.ag-assets {\r\n   display: flex;\r\n   flex-wrap: wrap;\r\n}\r\n\r\n.ag-search {\r\n   position: relative;\r\n}\r\n\r\n.ag-search-icon {\r\n   width: 20px;\r\n   height: 20px;\r\n   position: absolute;\r\n   right: 15px;\r\n   top: 50%;\r\n   transform: translateY(-50%);\r\n}\r\n\r\n.ag-search-icon img {\r\n   width: 100%;\r\n}\r\n\r\n.ag-no-assets {\r\n   padding: 10px 2px;\r\n}\r\n\r\n.ag-no-assets p {\r\n   font-size: 13px;\r\n}\r\n\r\n.ag-no-assets h2 {\r\n   padding-top: 10px;\r\n   padding-bottom: 15px;\r\n}\r\n", ""]);
 
 // exports
 
@@ -30275,12 +30275,15 @@ function AssetGallery() {
     placeholder: "Search...",
     style: {
       paddingLeft: '100px'
-    }
+    },
+    disabled: assets.length === 0
   }), React.createElement("div", {
     className: "ag-search-icon"
   }, React.createElement("img", {
     src: "/assets/search-150.png"
   }))), React.createElement("div", {
+    className: "ag-body"
+  }, assets.length ? React.createElement("div", {
     className: "ag-assets",
     draggable: true,
     onDragStartCapture: onDragStartCapture
@@ -30292,7 +30295,9 @@ function AssetGallery() {
       selected: isSelected,
       handleSelect: handleSelect
     });
-  })));
+  })) : React.createElement("div", {
+    className: "ag-no-assets"
+  }, React.createElement("h2", null, "No assets found."), React.createElement("p", null, "Please open Settings and do the following:"), React.createElement("p", null, "1. Select the Assets Folder Path."), React.createElement("p", null, "2. Enter the correct name for the config file."))));
 }
 
 module.exports = AssetGallery;
