@@ -1,13 +1,11 @@
 const React = require('react');
 const fs = require('uxp').storage.localFileSystem;
-const { error } = require('../../lib/dialogs.js');
 
-const CategoryPicker = require('./category-picker/category-picker.component.jsx');
+const Categories = require('./categories/categories.component.jsx');
 const AssetGallery = require('./asset-gallery/asset-gallery.component.jsx');
 const SettingsButton = require('./settings/settings.component.jsx');
 
 const useDimensionsOnResize = require('../hooks/useDimensionsOnResize.js');
-const loadAssetDataFromFile = require('../utils/loadAssetDataFromFile.js');
 
 const { useGlobalState } = require('../context/globalState.jsx');
 const {
@@ -18,34 +16,9 @@ const {
 require('./app.styles.css');
 
 function App() {
-   const [mainCategories, setMainCategories] = React.useState([]);
-   const [subCategories, setSubCategories] = React.useState([]);
-
-   const [selectedMainCategory, setSelectedMainCategory] = React.useState('');
-   const [selectedSubCategory, setSelectedSubCategory] = React.useState('');
-
    const [context, dispatch] = useGlobalState();
    const { settings } = context;
    const { assetsFolderPath, assetsFolderObj, configJsonName } = settings;
-
-   const setCategories = (jsonData) => {
-      setMainCategories(jsonData.main);
-      setSubCategories(jsonData.sub);
-   };
-
-   const loadCategories = async (folderObj, jsonName) => {
-      const response = await loadAssetDataFromFile(folderObj, jsonName);
-
-      if (response.status === 'success') {
-         const { data: jsonData } = response;
-         setCategories(jsonData);
-      } else {
-         const { data: errorData } = response;
-         error(errorData.title, errorData.body);
-      }
-
-      return errorMessage;
-   };
 
    React.useEffect(() => {
       (async () => {
@@ -57,9 +30,6 @@ function App() {
    React.useEffect(() => {
       const filePath = assetsFolderObj.nativePath;
       filePath && setAssetsFolderPath(dispatch, assetsFolderObj.nativePath);
-
-      const assetsFolderExists = !!assetsFolderObj.nativePath;
-      assetsFolderExists && loadCategories(assetsFolderObj, configJsonName);
    }, [assetsFolderObj, configJsonName]);
 
    const wrapperRef = React.useRef();
@@ -67,31 +37,13 @@ function App() {
 
    return (
       <div className="app-wrapper">
-         <div className="sb-wrapper">
+         <div className="app-header">
             <h1>Asset Manager</h1>
-            <SettingsButton className="sb-button" />
+            <SettingsButton className="app-settings-btn" />
          </div>
 
          <div ref={wrapperRef} className="app-options">
-            <div className="app-categories">
-               <h2>Select Categories :</h2>
-
-               <CategoryPicker
-                  title="Main Category"
-                  values={mainCategories}
-                  onChange={(val) => setSelectedMainCategory(val)}
-               />
-
-               <CategoryPicker
-                  title="Sub Category"
-                  values={subCategories}
-                  onChange={(val) => setSelectedSubCategory(val)}
-               />
-               <div className="update-list">
-                  <button uxp-variant="cta">Update List</button>
-               </div>
-            </div>
-
+            <Categories />
             <div className="asset-description"></div>
          </div>
 

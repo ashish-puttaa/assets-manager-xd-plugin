@@ -2,7 +2,7 @@
    position: relative;
 }
 
-.sb-wrapper {
+.app-header {
    display: flex;
    justify-content: space-between;
    align-items: center;
@@ -11,14 +11,4 @@
 
 .app-options {
    height: 270px;
-}
-
-.update-list {
-   display: flex;
-   justify-content: flex-end;
-}
-
-.app-categories-header {
-   display: flex;
-   justify-content: space-between;
 }
