@@ -1,11 +1,12 @@
 const SettingsActionTypes = require('./settings.types.js');
 
-exports.setAssetsFolderPath = (dispatch, folderPath) => {
-   dispatch({ type: SettingsActionTypes.SET_ASSETS_FOLDER_PATH, payload: folderPath });
-};
+// exports.setAssetsFolderPath = (dispatch, folderPath) => {
+//    dispatch({ type: SettingsActionTypes.SET_ASSETS_FOLDER_PATH, payload: folderPath });
+// };
 
 exports.setAssetsFolderObj = (dispatch, folderObj) => {
    dispatch({ type: SettingsActionTypes.SET_ASSETS_FOLDER_OBJECT, payload: folderObj });
+   dispatch({ type: SettingsActionTypes.SET_ASSETS_FOLDER_PATH, payload: folderObj.nativePath });
 };
 
 exports.setConfigJsonName = (dispatch, fileName) => {

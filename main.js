@@ -87,493 +87,6 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
-/***/ "./lib/dialogs.js":
-/*!************************!*\
-  !*** ./lib/dialogs.js ***!
-  \************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-/*
- * Copyright 2018 Adobe Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-const {
-  getManifest,
-  getNearestIcon
-} = __webpack_require__(/*! ./manifest.js */ "./lib/manifest.js");
-
-let manifest;
-/**
- * Converts a string (or an array of strings or other objects) to a nicer HTML
- * representation. Essentially this is a _very_ basic markdown parser.
- *
- * The following tokens are understood, when encountered at the beginning of
- * a string:
- *
- * Token        | Result
- * -------------|-----------------------
- * `##`         | `<h2>`
- * `###`        | `<h3>`
- * `* `         | Bulleted list
- * `----`       | `<hr class="small">`
- * `---`        | `<hr />`
- * `[...](href)`| `<p><a href="href">...</a></p>`
- *
- * @param {string | string[] | * | Array<*>} str
- * @returns {string} the HTML representation
- */
-
-function strToHtml(str) {
-  // allow some common overloads, including arrays and non-strings
-  if (Array.isArray(str)) {
-    return str.map(str => strToHtml(str)).join('');
-  }
-
-  if (typeof str !== 'string') {
-    return strToHtml(`${str}`);
-  }
-
-  let html = str; // handle some markdown stuff
-
-  if (html.substr(0, 2) === '##') {
-    html = `<h3>${html.substr(2).trim().toUpperCase()}</h3>`;
-  } else if (html.substr(0, 1) === '#') {
-    html = `<h2>${html.substr(1).trim()}</h2>`;
-  } else if (html.substr(0, 2) === '* ') {
-    html = `<p class="list"><span class="bullet margin">•</span><span class="margin">${html.substr(2).trim()}</span></p>`;
-  } else if (html.substr(0, 4) === '----') {
-    html = `<hr class="small"/>${html.substr(5).trim()}`;
-  } else if (html.substr(0, 3) === '---') {
-    html = `<hr/>${html.substr(4).trim()}`;
-  } else {
-    html = `<p>${html.trim()}</p>`;
-  } // handle links -- the catch here is that the link will transform the entire paragraph!
-
-
-  const regex = /\[([^\]]*)\]\(([^\)]*)\)/;
-  const matches = str.match(regex);
-
-  if (matches) {
-    const title = matches[1];
-    const url = matches[2];
-    html = `<p><a href="${url}">${html.replace(regex, title).replace(/\<\|?p\>/g, '')}</a></p>`;
-  }
-
-  return html;
-}
-/*
- * Generates a "notice" dialog with the title, default icon, and a series of messages.
- *
- * @param {*} param
- * @property {string} param.title The dialog title
- * @property {string} [param.icon] The dialog icon to use. If not provided, no icon will be rendered
- * @property {string[]} param.msgs The messages to render. If a message starts with `http`, it will be rendered as a link.
- * @property {string} [param.prompt] If specified, will render as a prompt with a single input field and the prompt as a placeholder
- * @property {boolean} [param.multiline=false] If `true`, the prompt will render as a multi-line text field.
- * @property {boolean} [param.isError=false] If specified, will render the header in a red color
- * @property {Function} [param.render] If set, the results of this function (a DOM tree) will be appended into the content area of the dialog.
- * @property {Function<String>} [param.template] If set, the results of this function (a string) will be appended into the content area of the dialog.
- * @property {Object[]} [buttons] Indicates the buttons to render. If none are specified, a `Close` button is rendered.
- * @returns {Promise} Resolves to an object of the form {which, value}. `value` only makes sense if `prompt` is set. `which` indicates which button was pressed.
- */
-
-
-async function createDialog({
-  title,
-  icon = 'plugin-icon',
-  msgs,
-  prompt,
-  multiline = false,
-  render,
-  template,
-  isError = false,
-  buttons = [{
-    label: 'Close',
-    variant: 'cta',
-    type: 'submit'
-  }]
-} = {}, width = 360, height = 'auto', iconSize = 18) {
-  let messages = Array.isArray(msgs) ? msgs : [msgs];
-
-  try {
-    if (!manifest) {
-      manifest = await getManifest();
-    }
-  } catch (err) {// do nothing
-  }
-
-  let usingPluginIcon = false;
-
-  if (icon === 'plugin-icon') {
-    if (manifest.icons) {
-      usingPluginIcon = true;
-      iconSize = 24;
-      icon = getNearestIcon(manifest, iconSize);
-    }
-  }
-
-  const dialog = document.createElement('dialog');
-  dialog.innerHTML = `
-<style>
-    form {
-        width: ${width}px;
-    }
-    .h1 {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .h1 img {
-        width: ${iconSize}px;
-        height: ${iconSize}px;
-        flex: 0 0 ${iconSize}px;
-        padding: 0;
-        margin: 0;
-    }
-    img.plugin-icon {
-        border-radius: 4px;
-        overflow: hidden;
-    }
-    .list {
-        display: flex;
-        flex-direction: row;
-    }
-    .list .margin {
-        margin-bottom: 0;
-        margin-left: 0;
-    }
-    .list span {
-        flex: 0 0 auto;
-        border: 1px solid transparent;
-    }
-    .list .bullet {
-        text-align: center;
-    }
-    .list + .list {
-        margin-top: 0;
-    }
-    textarea {
-        height: 200px;
-    }
-    .container {
-        zoverflow-x: hidden;
-        overflow-y: auto;
-        height: ${height === 'auto' ? height : `${height}px`};
-    }
-</style>
-<form method="dialog">
-    <h1 class="h1">
-        <span ${isError ? `class="color-red"` : ""}>${title}</span>
-        ${icon ? `<img ${usingPluginIcon ? `class="plugin-icon" title="${manifest.name}"` : ''} src="${icon}" />` : ''}
-    </h1>
-    <hr />
-    <div class="container">
-        ${!render && (template ? template() : messages.map(msg => strToHtml(msg)).join('') + (prompt ? `<label>${multiline ? `<textarea id="prompt" placeholder="${prompt}"></textarea>` : `<input type="text" id="prompt" placeholder="${prompt}" />`}</label>` : ''))}
-    </div>
-    <footer>
-        ${buttons.map(({
-    label,
-    type,
-    variant
-  } = {}, idx) => `<button id="btn${idx}" type="${type}" uxp-variant="${variant}">${label}</button>`).join('')}
-    </footer>
-</form>
-    `; // if render fn is passed, we'll call it and attach the DOM tree
-
-  if (render) {
-    dialog.querySelector(".container").appendChild(render());
-  } // The "ok" and "cancel" button indices. OK buttons are "submit" or "cta" buttons. Cancel buttons are "reset" buttons.
-
-
-  let okButtonIdx = -1;
-  let cancelButtonIdx = -1;
-  let clickedButtonIdx = -1; // Ensure that the form can submit when the user presses ENTER (we trigger the OK button here)
-
-  const form = dialog.querySelector('form');
-
-  form.onsubmit = () => dialog.close('ok'); // Attach button event handlers and set ok and cancel indices
-
-
-  buttons.forEach(({
-    type,
-    variant
-  } = {}, idx) => {
-    const button = dialog.querySelector(`#btn${idx}`);
-
-    if (type === 'submit' || variant === 'cta') {
-      okButtonIdx = idx;
-    }
-
-    if (type === 'reset') {
-      cancelButtonIdx = idx;
-    }
-
-    button.onclick = e => {
-      e.preventDefault();
-      clickedButtonIdx = idx;
-      dialog.close(idx === cancelButtonIdx ? 'reasonCanceled' : 'ok');
-    };
-  });
-
-  try {
-    document.appendChild(dialog);
-    const response = await dialog.showModal();
-
-    if (response === 'reasonCanceled') {
-      // user hit ESC
-      return {
-        which: cancelButtonIdx,
-        value: ''
-      };
-    } else {
-      if (clickedButtonIdx === -1) {
-        // user pressed ENTER, so no button was clicked!
-        clickedButtonIdx = okButtonIdx; // may still be -1, but we tried
-      }
-
-      return {
-        which: clickedButtonIdx,
-        value: prompt ? dialog.querySelector('#prompt').value : ''
-      };
-    }
-  } catch (err) {
-    // system refused the dialog
-    return {
-      which: cancelButtonIdx,
-      value: ''
-    };
-  } finally {
-    dialog.remove();
-  }
-}
-/**
- * Generates an alert message
- *
- * @param {string} title
- * @param {string[]} msgs
- * @returns {Promise<{which: number}>} `which` indicates which button was clicked.
- */
-
-
-async function alert(title, ...msgs) {
-  return createDialog({
-    title,
-    msgs
-  });
-}
-/**
- * Generates a warning message
- *
- * @param {string} title
- * @param {string[]} msgs
- * @returns {Promise<{which: number}>} `which` indicates which button was clicked.
- */
-
-
-async function error(title, ...msgs) {
-  return createDialog({
-    title,
-    isError: true,
-    msgs
-  });
-}
-/**
- * Displays a confirmation dialog.
- *
- * @param {string} title
- * @param {string} msg
- * @param {string[]} [buttons = ['Cancel', 'OK']] the buttons to display (in macOS order); TWO MAX.
- * @returns {Promise<{which: number}>} `which` indicates which button was clicked.
- */
-
-
-async function confirm(title, msg, buttons = ['Cancel', 'OK']) {
-  return createDialog({
-    title,
-    msgs: [msg],
-    buttons: [{
-      label: buttons[0],
-      type: 'reset',
-      variant: 'primary'
-    }, {
-      label: buttons[1],
-      type: 'submit',
-      variant: 'cta'
-    }]
-  });
-}
-/**
- * Displays a warning dialog.
- *
- * @param {string} title
- * @param {string} msg
- * @param {string[]} [buttons = ['Cancel', 'OK']] the buttons to display (in macOS order); TWO MAX.
- * @returns {Promise<{which: number}>} `which` indicates which button was clicked.
- */
-
-
-async function warning(title, msg, buttons = ['Cancel', 'OK']) {
-  return createDialog({
-    title,
-    msgs: [msg],
-    buttons: [{
-      label: buttons[0],
-      type: 'submit',
-      variant: 'primary'
-    }, {
-      label: buttons[1],
-      type: 'button',
-      variant: 'warning'
-    }]
-  });
-}
-/**
- * Displays a warning dialog.
- *
- * @param {string} title
- * @param {string} msg
- * @param {string} prompt
- * @param {string[]} [buttons = ['Cancel', 'OK']] the buttons to display (in macOS order); TWO MAX.
- * @param {boolean} [multiline = false] If `true`, a multiline textarea will be used instead of a single line editor.
- * @returns {Promise<{which: number, value: string}>} `which` indicates which button was clicked, and `value` indicates the entered value in the text field.
- */
-
-
-async function prompt(title, msg, prompt, buttons = ['Cancel', 'OK'], multiline = false) {
-  return createDialog({
-    title,
-    msgs: [msg],
-    prompt,
-    multiline,
-    buttons: [{
-      label: buttons[0],
-      type: 'reset',
-      variant: 'primary'
-    }, {
-      label: buttons[1],
-      type: 'submit',
-      variant: 'cta'
-    }]
-  });
-}
-
-module.exports = {
-  createDialog,
-  alert,
-  error,
-  confirm,
-  warning,
-  prompt
-};
-
-/***/ }),
-
-/***/ "./lib/manifest.js":
-/*!*************************!*\
-  !*** ./lib/manifest.js ***!
-  \*************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-/*
- * Copyright 2018 Adobe Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-let manifest;
-/**
- * Reads the plugin's manifest and returns the parsed contents.
- *
- * Throws if the manifest is invalid or doesn't exist.
- *
- * Note: Reads manifest only once. Future calls will not reload
- * the manifest file.
- */
-
-async function getManifest() {
-  if (!manifest) {
-    const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
-
-    const dataFolder = await fs.getPluginFolder();
-    const manifestFile = await dataFolder.getEntry("manifest.json");
-
-    if (manifestFile) {
-      const json = await manifestFile.read();
-      manifest = JSON.parse(json);
-    }
-  }
-
-  return manifest;
-}
-/**
- * Return the icon path that can fit the requested size without upscaling.
- *
- * @param {*} manifest
- * @param {number} size
- * @returns {string} path to the icon
- */
-
-
-function getNearestIcon(manifest, size) {
-  if (!manifest) {
-    return;
-  }
-
-  if (manifest.icons) {
-    // icons is an array of objects of the form
-    // { width, height, path }
-    // icons are assumed to be square, so we'll sort descending on the width
-    const sortedIcons = manifest.icons.sort((a, b) => {
-      const iconAWidth = a.width;
-      const iconBWidth = b.width;
-      return iconAWidth < iconBWidth ? 1 : iconAWidth > iconBWidth ? -1 : 0;
-    }); // next, search until we find an icon _too_ small for the desired size
-
-    const icon = sortedIcons.reduce((last, cur) => {
-      if (!last) {
-        last = cur;
-      } else {
-        if (cur.width >= size) {
-          last = cur;
-        }
-      }
-
-      return last;
-    });
-    return icon.path;
-  }
-}
-
-module.exports = {
-  getManifest,
-  getNearestIcon
-};
-
-/***/ }),
-
 /***/ "./node_modules/css-loader/index.js!./src/components/add-category-modal/add-category-modal.styles.css":
 /*!***************************************************************************************************!*\
   !*** ./node_modules/css-loader!./src/components/add-category-modal/add-category-modal.styles.css ***!
@@ -624,7 +137,7 @@ exports = module.exports = __webpack_require__(/*! ../../../node_modules/css-loa
 
 
 // module
-exports.push([module.i, ".ac-card {\r\n   width: 95px;\r\n   height: 95px;\r\n   padding: 10px;\r\n   margin: 7px;\r\n   background-color: white;\r\n   border-radius: 5px;\r\n   transition: all 1s;\r\n   display: flex;\r\n   align-items: center;\r\n   justify-content: center;\r\n   overflow: hidden;\r\n}\r\n\r\n.ac-card img {\r\n   width: 100%;\r\n}\r\n\r\n.ac-card:hover {\r\n   cursor: pointer;\r\n}\r\n\r\n.ac-card:active {\r\n   cursor: grab;\r\n}\r\n\r\n.ac-card.ac-selected {\r\n   border: 2px solid #2680eb;\r\n}\r\n", ""]);
+exports.push([module.i, ".ac-card {\r\n   width: 95px;\r\n   height: 95px;\r\n   padding: 10px;\r\n   margin: 7px;\r\n   background-color: white;\r\n   border-radius: 5px;\r\n   transition: all 1s;\r\n   display: flex;\r\n   align-items: center;\r\n   justify-content: center;\r\n   overflow: hidden;\r\n}\r\n\r\n.ac-card img {\r\n   width: 100%;\r\n   max-height: 100%;\r\n}\r\n\r\n.ac-card:hover {\r\n   cursor: pointer;\r\n}\r\n\r\n.ac-card:active {\r\n   cursor: grab;\r\n}\r\n\r\n.ac-card.ac-selected {\r\n   border: 2px solid #2680eb;\r\n}\r\n", ""]);
 
 // exports
 
@@ -643,7 +156,7 @@ exports = module.exports = __webpack_require__(/*! ../../../node_modules/css-loa
 
 
 // module
-exports.push([module.i, ".ag-wrapper {\r\n   margin-top: 20px;\r\n}\r\n\r\n.ag-assets {\r\n   display: flex;\r\n   flex-wrap: wrap;\r\n}\r\n\r\n.ag-search {\r\n   position: relative;\r\n}\r\n\r\n.ag-search-icon {\r\n   width: 20px;\r\n   height: 20px;\r\n   position: absolute;\r\n   right: 15px;\r\n   top: 50%;\r\n   transform: translateY(-50%);\r\n}\r\n\r\n.ag-search-icon img {\r\n   width: 100%;\r\n}\r\n\r\n.ag-no-assets {\r\n   padding: 10px 2px;\r\n}\r\n\r\n.ag-no-assets p {\r\n   font-size: 13px;\r\n}\r\n\r\n.ag-no-assets h2 {\r\n   padding-top: 10px;\r\n   padding-bottom: 15px;\r\n}\r\n", ""]);
+exports.push([module.i, ".ag-wrapper {\r\n   margin-top: 20px;\r\n}\r\n\r\n.ag-assets {\r\n   display: flex;\r\n   flex-wrap: wrap;\r\n}\r\n\r\n.ag-search {\r\n   position: relative;\r\n}\r\n\r\n.ag-search-icon {\r\n   width: 20px;\r\n   height: 20px;\r\n   position: absolute;\r\n   right: 15px;\r\n   top: 50%;\r\n   transform: translateY(-50%);\r\n   cursor: pointer;\r\n}\r\n\r\n.ag-search-icon img {\r\n   width: 100%;\r\n}\r\n\r\n.ag-no-assets {\r\n   padding: 10px 2px;\r\n}\r\n\r\n.ag-no-assets p {\r\n   font-size: 13px;\r\n}\r\n\r\n.ag-no-assets h2 {\r\n   padding-top: 10px;\r\n   padding-bottom: 15px;\r\n}\r\n", ""]);
 
 // exports
 
@@ -892,6 +405,515 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 
 	return to;
 };
+
+
+/***/ }),
+
+/***/ "./node_modules/path-browserify/index.js":
+/*!***********************************************!*\
+  !*** ./node_modules/path-browserify/index.js ***!
+  \***********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(process) {// .dirname, .basename, and .extname methods are extracted from Node.js v8.11.1,
+// backported and transplited with Babel, with backwards-compat fixes
+
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// resolves . and .. elements in a path array with directory names there
+// must be no slashes, empty elements, or device names (c:\) in the array
+// (so also no leading and trailing slashes - it does not distinguish
+// relative and absolute paths)
+function normalizeArray(parts, allowAboveRoot) {
+  // if the path tries to go above the root, `up` ends up > 0
+  var up = 0;
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var last = parts[i];
+    if (last === '.') {
+      parts.splice(i, 1);
+    } else if (last === '..') {
+      parts.splice(i, 1);
+      up++;
+    } else if (up) {
+      parts.splice(i, 1);
+      up--;
+    }
+  }
+
+  // if the path is allowed to go above the root, restore leading ..s
+  if (allowAboveRoot) {
+    for (; up--; up) {
+      parts.unshift('..');
+    }
+  }
+
+  return parts;
+}
+
+// path.resolve([from ...], to)
+// posix version
+exports.resolve = function() {
+  var resolvedPath = '',
+      resolvedAbsolute = false;
+
+  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+    var path = (i >= 0) ? arguments[i] : process.cwd();
+
+    // Skip empty and invalid entries
+    if (typeof path !== 'string') {
+      throw new TypeError('Arguments to path.resolve must be strings');
+    } else if (!path) {
+      continue;
+    }
+
+    resolvedPath = path + '/' + resolvedPath;
+    resolvedAbsolute = path.charAt(0) === '/';
+  }
+
+  // At this point the path should be resolved to a full absolute path, but
+  // handle relative paths to be safe (might happen when process.cwd() fails)
+
+  // Normalize the path
+  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
+    return !!p;
+  }), !resolvedAbsolute).join('/');
+
+  return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
+};
+
+// path.normalize(path)
+// posix version
+exports.normalize = function(path) {
+  var isAbsolute = exports.isAbsolute(path),
+      trailingSlash = substr(path, -1) === '/';
+
+  // Normalize the path
+  path = normalizeArray(filter(path.split('/'), function(p) {
+    return !!p;
+  }), !isAbsolute).join('/');
+
+  if (!path && !isAbsolute) {
+    path = '.';
+  }
+  if (path && trailingSlash) {
+    path += '/';
+  }
+
+  return (isAbsolute ? '/' : '') + path;
+};
+
+// posix version
+exports.isAbsolute = function(path) {
+  return path.charAt(0) === '/';
+};
+
+// posix version
+exports.join = function() {
+  var paths = Array.prototype.slice.call(arguments, 0);
+  return exports.normalize(filter(paths, function(p, index) {
+    if (typeof p !== 'string') {
+      throw new TypeError('Arguments to path.join must be strings');
+    }
+    return p;
+  }).join('/'));
+};
+
+
+// path.relative(from, to)
+// posix version
+exports.relative = function(from, to) {
+  from = exports.resolve(from).substr(1);
+  to = exports.resolve(to).substr(1);
+
+  function trim(arr) {
+    var start = 0;
+    for (; start < arr.length; start++) {
+      if (arr[start] !== '') break;
+    }
+
+    var end = arr.length - 1;
+    for (; end >= 0; end--) {
+      if (arr[end] !== '') break;
+    }
+
+    if (start > end) return [];
+    return arr.slice(start, end - start + 1);
+  }
+
+  var fromParts = trim(from.split('/'));
+  var toParts = trim(to.split('/'));
+
+  var length = Math.min(fromParts.length, toParts.length);
+  var samePartsLength = length;
+  for (var i = 0; i < length; i++) {
+    if (fromParts[i] !== toParts[i]) {
+      samePartsLength = i;
+      break;
+    }
+  }
+
+  var outputParts = [];
+  for (var i = samePartsLength; i < fromParts.length; i++) {
+    outputParts.push('..');
+  }
+
+  outputParts = outputParts.concat(toParts.slice(samePartsLength));
+
+  return outputParts.join('/');
+};
+
+exports.sep = '/';
+exports.delimiter = ':';
+
+exports.dirname = function (path) {
+  if (typeof path !== 'string') path = path + '';
+  if (path.length === 0) return '.';
+  var code = path.charCodeAt(0);
+  var hasRoot = code === 47 /*/*/;
+  var end = -1;
+  var matchedSlash = true;
+  for (var i = path.length - 1; i >= 1; --i) {
+    code = path.charCodeAt(i);
+    if (code === 47 /*/*/) {
+        if (!matchedSlash) {
+          end = i;
+          break;
+        }
+      } else {
+      // We saw the first non-path separator
+      matchedSlash = false;
+    }
+  }
+
+  if (end === -1) return hasRoot ? '/' : '.';
+  if (hasRoot && end === 1) {
+    // return '//';
+    // Backwards-compat fix:
+    return '/';
+  }
+  return path.slice(0, end);
+};
+
+function basename(path) {
+  if (typeof path !== 'string') path = path + '';
+
+  var start = 0;
+  var end = -1;
+  var matchedSlash = true;
+  var i;
+
+  for (i = path.length - 1; i >= 0; --i) {
+    if (path.charCodeAt(i) === 47 /*/*/) {
+        // If we reached a path separator that was not part of a set of path
+        // separators at the end of the string, stop now
+        if (!matchedSlash) {
+          start = i + 1;
+          break;
+        }
+      } else if (end === -1) {
+      // We saw the first non-path separator, mark this as the end of our
+      // path component
+      matchedSlash = false;
+      end = i + 1;
+    }
+  }
+
+  if (end === -1) return '';
+  return path.slice(start, end);
+}
+
+// Uses a mixed approach for backwards-compatibility, as ext behavior changed
+// in new Node.js versions, so only basename() above is backported here
+exports.basename = function (path, ext) {
+  var f = basename(path);
+  if (ext && f.substr(-1 * ext.length) === ext) {
+    f = f.substr(0, f.length - ext.length);
+  }
+  return f;
+};
+
+exports.extname = function (path) {
+  if (typeof path !== 'string') path = path + '';
+  var startDot = -1;
+  var startPart = 0;
+  var end = -1;
+  var matchedSlash = true;
+  // Track the state of characters (if any) we see before our first dot and
+  // after any path separator we find
+  var preDotState = 0;
+  for (var i = path.length - 1; i >= 0; --i) {
+    var code = path.charCodeAt(i);
+    if (code === 47 /*/*/) {
+        // If we reached a path separator that was not part of a set of path
+        // separators at the end of the string, stop now
+        if (!matchedSlash) {
+          startPart = i + 1;
+          break;
+        }
+        continue;
+      }
+    if (end === -1) {
+      // We saw the first non-path separator, mark this as the end of our
+      // extension
+      matchedSlash = false;
+      end = i + 1;
+    }
+    if (code === 46 /*.*/) {
+        // If this is our first dot, mark it as the start of our extension
+        if (startDot === -1)
+          startDot = i;
+        else if (preDotState !== 1)
+          preDotState = 1;
+    } else if (startDot !== -1) {
+      // We saw a non-dot and non-path separator before our dot, so we should
+      // have a good chance at having a non-empty extension
+      preDotState = -1;
+    }
+  }
+
+  if (startDot === -1 || end === -1 ||
+      // We saw a non-dot character immediately before the dot
+      preDotState === 0 ||
+      // The (right-most) trimmed path component is exactly '..'
+      preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+    return '';
+  }
+  return path.slice(startDot, end);
+};
+
+function filter (xs, f) {
+    if (xs.filter) return xs.filter(f);
+    var res = [];
+    for (var i = 0; i < xs.length; i++) {
+        if (f(xs[i], i, xs)) res.push(xs[i]);
+    }
+    return res;
+}
+
+// String.prototype.substr - negative index don't work in IE8
+var substr = 'ab'.substr(-1) === 'b'
+    ? function (str, start, len) { return str.substr(start, len) }
+    : function (str, start, len) {
+        if (start < 0) start = str.length + start;
+        return str.substr(start, len);
+    }
+;
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../process/browser.js */ "./node_modules/process/browser.js")))
+
+/***/ }),
+
+/***/ "./node_modules/process/browser.js":
+/*!*****************************************!*\
+  !*** ./node_modules/process/browser.js ***!
+  \*****************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+// shim for using process in browser
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
 
 
 /***/ }),
@@ -29816,6 +29838,187 @@ module.exports = function (css) {
 
 /***/ }),
 
+/***/ "./node_modules/upath/build/code/upath.js":
+/*!************************************************!*\
+  !*** ./node_modules/upath/build/code/upath.js ***!
+  \************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+* upath http://github.com/anodynos/upath/
+*
+* A proxy to `path`, replacing `\` with `/` for all results & new methods to normalize & join keeping leading `./` and add, change, default, trim file extensions.
+* Version 1.2.0 - Compiled on 2019-09-02 23:33:57
+* Repository git://github.com/anodynos/upath
+* Copyright(c) 2019 Angelos Pikoulas <agelos.pikoulas@gmail.com>
+* License MIT
+*/
+
+// Generated by uRequire v0.7.0-beta.33 target: 'lib' template: 'nodejs'
+
+
+var VERSION = '1.2.0'; // injected by urequire-rc-inject-version
+
+var extraFn, extraFunctions, isFunction, isString, isValidExt, name, path, propName, propValue, toUnix, upath, slice = [].slice, indexOf = [].indexOf || function (item) {
+    for (var i = 0, l = this.length; i < l; i++) {
+      if (i in this && this[i] === item)
+        return i;
+    }
+    return -1;
+  }, hasProp = {}.hasOwnProperty;
+path = __webpack_require__(/*! path */ "./node_modules/path-browserify/index.js");
+isFunction = function (val) {
+  return val instanceof Function;
+};
+isString = function (val) {
+  return typeof val === "string" || !!val && typeof val === "object" && Object.prototype.toString.call(val) === "[object String]";
+};
+upath = exports;
+upath.VERSION = typeof VERSION !== "undefined" && VERSION !== null ? VERSION : "NO-VERSION";
+toUnix = function (p) {
+  var double;
+  p = p.replace(/\\/g, "/");
+  double = /\/\//;
+  while (p.match(double)) {
+    p = p.replace(double, "/");
+  }
+  return p;
+};
+for (propName in path) {
+  propValue = path[propName];
+  if (isFunction(propValue)) {
+    upath[propName] = function (propName) {
+      return function () {
+        var args, result;
+        args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+        args = args.map(function (p) {
+          if (isString(p)) {
+            return toUnix(p);
+          } else {
+            return p;
+          }
+        });
+        result = path[propName].apply(path, args);
+        if (isString(result)) {
+          return toUnix(result);
+        } else {
+          return result;
+        }
+      };
+    }(propName);
+  } else {
+    upath[propName] = propValue;
+  }
+}
+upath.sep = "/";
+extraFunctions = {
+  toUnix: toUnix,
+  normalizeSafe: function (p) {
+    p = toUnix(p);
+    if (p.startsWith("./")) {
+      if (p.startsWith("./..") || p === "./") {
+        return upath.normalize(p);
+      } else {
+        return "./" + upath.normalize(p);
+      }
+    } else {
+      return upath.normalize(p);
+    }
+  },
+  normalizeTrim: function (p) {
+    p = upath.normalizeSafe(p);
+    if (p.endsWith("/")) {
+      return p.slice(0, +(p.length - 2) + 1 || 9000000000);
+    } else {
+      return p;
+    }
+  },
+  joinSafe: function () {
+    var p, result;
+    p = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+    result = upath.join.apply(null, p);
+    if (p[0].startsWith("./") && !result.startsWith("./")) {
+      result = "./" + result;
+    }
+    return result;
+  },
+  addExt: function (file, ext) {
+    if (!ext) {
+      return file;
+    } else {
+      if (ext[0] !== ".") {
+        ext = "." + ext;
+      }
+      return file + (file.endsWith(ext) ? "" : ext);
+    }
+  },
+  trimExt: function (filename, ignoreExts, maxSize) {
+    var oldExt;
+    if (maxSize == null) {
+      maxSize = 7;
+    }
+    oldExt = upath.extname(filename);
+    if (isValidExt(oldExt, ignoreExts, maxSize)) {
+      return filename.slice(0, +(filename.length - oldExt.length - 1) + 1 || 9000000000);
+    } else {
+      return filename;
+    }
+  },
+  removeExt: function (filename, ext) {
+    if (!ext) {
+      return filename;
+    } else {
+      ext = ext[0] === "." ? ext : "." + ext;
+      if (upath.extname(filename) === ext) {
+        return upath.trimExt(filename);
+      } else {
+        return filename;
+      }
+    }
+  },
+  changeExt: function (filename, ext, ignoreExts, maxSize) {
+    if (maxSize == null) {
+      maxSize = 7;
+    }
+    return upath.trimExt(filename, ignoreExts, maxSize) + (!ext ? "" : ext[0] === "." ? ext : "." + ext);
+  },
+  defaultExt: function (filename, ext, ignoreExts, maxSize) {
+    var oldExt;
+    if (maxSize == null) {
+      maxSize = 7;
+    }
+    oldExt = upath.extname(filename);
+    if (isValidExt(oldExt, ignoreExts, maxSize)) {
+      return filename;
+    } else {
+      return upath.addExt(filename, ext);
+    }
+  }
+};
+isValidExt = function (ext, ignoreExts, maxSize) {
+  if (ignoreExts == null) {
+    ignoreExts = [];
+  }
+  return ext && ext.length <= maxSize && indexOf.call(ignoreExts.map(function (e) {
+    return (e && e[0] !== "." ? "." : "") + e;
+  }), ext) < 0;
+};
+for (name in extraFunctions) {
+  if (!hasProp.call(extraFunctions, name))
+    continue;
+  extraFn = extraFunctions[name];
+  if (upath[name] !== void 0) {
+    throw new Error("path." + name + " already exists.");
+  } else {
+    upath[name] = extraFn;
+  }
+}
+
+;
+
+/***/ }),
+
 /***/ "./src/components/add-category-modal/add-category-modal.component.jsx":
 /*!****************************************************************************!*\
   !*** ./src/components/add-category-modal/add-category-modal.component.jsx ***!
@@ -29965,41 +30168,27 @@ const AssetGallery = __webpack_require__(/*! ./asset-gallery/asset-gallery.compo
 
 const SettingsButton = __webpack_require__(/*! ./settings/settings.component.jsx */ "./src/components/settings/settings.component.jsx");
 
-const useDimensionsOnResize = __webpack_require__(/*! ../hooks/useDimensionsOnResize.js */ "./src/hooks/useDimensionsOnResize.js");
-
 const {
   useGlobalState
 } = __webpack_require__(/*! ../context/globalState.jsx */ "./src/context/globalState.jsx");
 
 const {
-  setAssetsFolderObj,
-  setAssetsFolderPath
+  setAssetsFolderObj
 } = __webpack_require__(/*! ../context/settings/settings.actions.js */ "./src/context/settings/settings.actions.js");
+
+const useMonitorAndReloadAssets = __webpack_require__(/*! ../hooks/useMonitorAndReloadAssets.js */ "./src/hooks/useMonitorAndReloadAssets.js");
 
 __webpack_require__(/*! ./app.styles.css */ "./src/components/app.styles.css");
 
 function App() {
   const [context, dispatch] = useGlobalState();
-  const {
-    settings
-  } = context;
-  const {
-    assetsFolderPath,
-    assetsFolderObj,
-    configJsonName
-  } = settings;
   React.useEffect(() => {
     (async () => {
       const pluginDataFolder = await fs.getDataFolder();
       setAssetsFolderObj(dispatch, pluginDataFolder);
     })();
   }, []);
-  React.useEffect(() => {
-    const filePath = assetsFolderObj.nativePath;
-    filePath && setAssetsFolderPath(dispatch, assetsFolderObj.nativePath);
-  }, [assetsFolderObj, configJsonName]);
-  const wrapperRef = React.useRef();
-  const panelDimensions = useDimensionsOnResize(wrapperRef);
+  useMonitorAndReloadAssets();
   return React.createElement("div", {
     className: "app-wrapper"
   }, React.createElement("div", {
@@ -30007,16 +30196,10 @@ function App() {
   }, React.createElement("h1", null, "Asset Manager"), React.createElement(SettingsButton, {
     className: "app-settings-btn"
   })), React.createElement("div", {
-    ref: wrapperRef,
     className: "app-options"
   }, React.createElement(Categories, null), React.createElement("div", {
     className: "asset-description"
-  })), React.createElement(AssetGallery, null), panelDimensions && React.createElement("p", null, "Panel size: ", panelDimensions.width, " x ", panelDimensions.height), assetsFolderPath && React.createElement("div", null, "Selected Folder:", React.createElement("input", {
-    type: "text",
-    "uxp-quiet": "true",
-    value: assetsFolderPath,
-    readOnly: true
-  })), configJsonName && React.createElement("p", null, "Json Name: ", configJsonName));
+  })), React.createElement(AssetGallery, null));
 }
 
 module.exports = App;
@@ -30062,6 +30245,8 @@ if(false) {}
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
+const upath = __webpack_require__(/*! upath */ "./node_modules/upath/build/code/upath.js");
+
 const handleDragFilesToCanvas = __webpack_require__(/*! ../../utils/handleDragFilesToCanvas.js */ "./src/utils/handleDragFilesToCanvas.js");
 
 __webpack_require__(/*! ./asset-card.styles.css */ "./src/components/asset-card/asset-card.styles.css");
@@ -30070,24 +30255,24 @@ const SELECT_TYPE = {
   SINGLE: 'SINGLE',
   MULTIPLE: 'MULTIPLE'
 };
-const folderUrl = 'C:/Users/ashish/AppData/Local/Packages/Adobe.CC.XD_adky2gkssdxte/LocalState/develop/zoho-asset-manager';
 
 function AssetCard({
-  url,
+  data,
   handleSelect,
-  selected
+  selected,
+  folderUrl
 }) {
   const onClick = e => {
     const selectType = e.ctrlKey ? SELECT_TYPE.MULTIPLE : SELECT_TYPE.SINGLE;
-    handleSelect && handleSelect(selectType, url);
+    handleSelect && handleSelect(selectType, data.url);
   };
 
   const onDragStart = e => {
-    const assetUrl = `${folderUrl}/${url}`;
+    const assetUrl = upath.join(folderUrl, data.url);
 
     if (!selected) {
       handleDragFilesToCanvas(e, assetUrl);
-      handleSelect(SELECT_TYPE.SINGLE, url);
+      handleSelect(SELECT_TYPE.SINGLE, data.url);
     }
   };
 
@@ -30095,9 +30280,10 @@ function AssetCard({
     className: `ac-card ${selected && 'ac-selected'}`,
     onClick: onClick,
     draggable: true,
-    onDragStart: onDragStart
+    onDragStart: onDragStart,
+    title: data.name
   }, React.createElement("img", {
-    src: url
+    src: upath.join('userData', data.url)
   }));
 }
 
@@ -30145,7 +30331,13 @@ if(false) {}
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
-const fs = __webpack_require__(/*! uxp */ "uxp").storage.localFileSystem;
+const {
+  useGlobalState
+} = __webpack_require__(/*! ../../context/globalState.jsx */ "./src/context/globalState.jsx");
+
+const {
+  setSelectedAssets: setSelectedAssetsInContext
+} = __webpack_require__(/*! ../../context/assets/assets.actions.js */ "./src/context/assets/assets.actions.js");
 
 const handleDragFilesToCanvas = __webpack_require__(/*! ../../utils/handleDragFilesToCanvas.js */ "./src/utils/handleDragFilesToCanvas.js");
 
@@ -30157,54 +30349,21 @@ const {
 
 __webpack_require__(/*! ./asset-gallery.styles.css */ "./src/components/asset-gallery/asset-gallery.styles.css");
 
-const folderUrl = 'C:/Users/ashish/AppData/Local/Packages/Adobe.CC.XD_adky2gkssdxte/LocalState/develop/zoho-asset-manager';
-const imageUrls = [{
-  url: 'userData/plus-math-b-96.png'
-}, {
-  url: 'userData/plus-math-96.png'
-}, {
-  url: 'userData/plus-52.png'
-}, {
-  url: 'userData/cancel-96.png'
-}, {
-  url: 'userData/edit.svg'
-}, {
-  url: 'userData/cancel2-96.png'
-}, {
-  url: 'userData/delete-96.png'
-}, {
-  url: 'userData/delete-bin-96.png'
-}, {
-  url: 'userData/delete-flat-96.png'
-}, {
-  url: 'userData/settings-flat-144.png'
-}, {
-  url: 'userData/settings-144.png'
-}, {
-  url: 'userData/settings-flat-144.svg'
-}, {
-  url: 'userData/table.svg'
-}, {
-  url: 'userData/big-table.svg'
-}, {
-  url: 'userData/peace.jpg'
-}, {
-  url: 'userData/edit-52.png'
-}, {
-  url: 'userData/coding.png'
-}];
-
 function AssetGallery() {
   const [assets, setAssets] = React.useState([]);
   const [selectedAssets, setSelectedAssets] = React.useState([]);
+  const [context, dispatch] = useGlobalState();
+  const {
+    settings: {
+      assetsFolderPath
+    },
+    assets: {
+      filtered: filteredAssets
+    }
+  } = context;
   React.useEffect(() => {
-    setAssets(imageUrls);
-  }, []);
-  React.useEffect(() => {
-    console.log({
-      selectedAssets
-    });
-  }, [selectedAssets]);
+    setAssets(filteredAssets);
+  }, [filteredAssets]);
 
   const handleSelect = (selectType, url) => {
     const asset = assets.find(el => el.url === url);
@@ -30220,13 +30379,27 @@ function AssetGallery() {
       }
 
       setSelectedAssets(() => newArray);
+      setSelectedAssetsInContext(dispatch, newArray);
     } else {
       setSelectedAssets(() => [asset]);
+      setSelectedAssetsInContext(dispatch, [asset]);
     }
   };
 
+  const handleSearch = e => {
+    const enterKeyCode = 13;
+
+    if (e.keyCode == enterKeyCode) {
+      const searchString = e.target.value;
+      const searchedAssets = filteredAssets.filter(item => item.name.toLowerCase().includes(searchString.toLowerCase()));
+      setAssets(searchedAssets);
+    }
+
+    e.target.focus();
+  };
+
   const onDragStartCapture = e => {
-    const thingsToDrag = selectedAssets.map(el => `${folderUrl}/${el.url}`);
+    const thingsToDrag = selectedAssets.map(el => `${assetsFolderPath}/${el.url}`);
     handleDragFilesToCanvas(e, thingsToDrag);
   };
 
@@ -30245,28 +30418,32 @@ function AssetGallery() {
     style: {
       paddingLeft: '100px'
     },
-    disabled: assets.length === 0
+    disabled: filteredAssets.length === 0,
+    onKeyDown: handleSearch
   }), React.createElement("div", {
     className: "ag-search-icon"
   }, React.createElement("img", {
     src: "/assets/search-150.png"
   }))), React.createElement("div", {
     className: "ag-body"
-  }, assets.length ? React.createElement("div", {
+  }, filteredAssets.length ? React.createElement("div", {
     className: "ag-assets",
     draggable: true,
     onDragStartCapture: onDragStartCapture
   }, assets.map((item, i) => {
     const isSelected = selectedAssets.some(el => el.url === item.url);
     return React.createElement(AssetCard, {
-      url: item.url,
+      data: item,
       key: i,
       selected: isSelected,
-      handleSelect: handleSelect
+      handleSelect: handleSelect,
+      folderUrl: assetsFolderPath
     });
   })) : React.createElement("div", {
     className: "ag-no-assets"
-  }, React.createElement("h2", null, "No assets found."), React.createElement("p", null, "Please open Settings and do the following:"), React.createElement("p", null, "1. Select the Assets Folder Path."), React.createElement("p", null, "2. Enter the correct name for the config file."))));
+  }, React.createElement("h2", null, "No assets found."), React.createElement("p", null, "Please open Settings and do the following:"), React.createElement("p", null, "1. Select the Assets Folder Path."), React.createElement("p", null, "2. Enter the correct name for the config file.")), !assets.length && React.createElement("div", {
+    className: "ag-no-assets"
+  }, React.createElement("h2", null, "No assets match the search string."))));
 }
 
 module.exports = AssetGallery;
@@ -30312,19 +30489,21 @@ if(false) {}
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
+const CategoryPicker = __webpack_require__(/*! ../category-picker/category-picker.component.jsx */ "./src/components/category-picker/category-picker.component.jsx");
+
+const {
+  setFilteredAssets
+} = __webpack_require__(/*! ../../context/assets/assets.actions.js */ "./src/context/assets/assets.actions.js");
+
+const {
+  setSelectedCategories
+} = __webpack_require__(/*! ../../context/categories/categories.actions.js */ "./src/context/categories/categories.actions.js");
+
+__webpack_require__(/*! ./categories.styles.css */ "./src/components/categories/categories.styles.css");
+
 const {
   useGlobalState
 } = __webpack_require__(/*! ../../context/globalState.jsx */ "./src/context/globalState.jsx");
-
-const {
-  error
-} = __webpack_require__(/*! ../../../lib/dialogs.js */ "./lib/dialogs.js");
-
-const loadAssetDataFromFile = __webpack_require__(/*! ../../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
-
-const CategoryPicker = __webpack_require__(/*! ../category-picker/category-picker.component.jsx */ "./src/components/category-picker/category-picker.component.jsx");
-
-__webpack_require__(/*! ./categories.styles.css */ "./src/components/categories/categories.styles.css");
 
 function Categories() {
   const [mainCategories, setMainCategories] = React.useState([]);
@@ -30333,46 +30512,33 @@ function Categories() {
   const [selectedSubCategory, setSelectedSubCategory] = React.useState('');
   const [context, dispatch] = useGlobalState();
   const {
-    settings
-  } = context;
+    all: allCategories
+  } = context.categories;
   const {
-    assetsFolderObj,
-    configJsonName
-  } = settings;
-
-  const setCategories = jsonData => {
-    setMainCategories(jsonData.main);
-    setSubCategories(jsonData.sub);
-  };
-
-  const loadCategories = async (folderObj, jsonName) => {
-    const response = await loadAssetDataFromFile(folderObj, jsonName);
-
-    if (response.status === 'success') {
-      const {
-        data: jsonData
-      } = response;
-      setCategories(jsonData);
-    } else {
-      const {
-        data: errorData
-      } = response;
-      error(errorData.title, errorData.body);
-    }
-
-    return errorMessage;
-  };
-
+    all: allAssets
+  } = context.assets;
   React.useEffect(() => {
-    const assetsFolderExists = !!assetsFolderObj.nativePath;
-    assetsFolderExists && loadCategories(assetsFolderObj, configJsonName);
-  }, [assetsFolderObj, configJsonName]);
+    setMainCategories([...Object.keys(allCategories)]);
+  }, [allCategories]);
+
+  const handleSelectedMainCategory = val => {
+    const newKeys = val && Object.keys(allCategories[val]);
+    setSelectedMainCategory(val);
+    setSubCategories(newKeys);
+  };
+
+  const handleSubmit = () => {
+    setSelectedCategories(dispatch, [selectedMainCategory, selectedSubCategory]);
+    const filteredAssets = allAssets.filter(item => item.category.some(c => c === selectedSubCategory));
+    setFilteredAssets(dispatch, filteredAssets);
+  };
+
   return React.createElement("div", {
     className: "categories-wrapper"
   }, React.createElement("h2", null, "Select Categories :"), React.createElement(CategoryPicker, {
     title: "Main Category",
     values: mainCategories,
-    onChange: val => setSelectedMainCategory(val)
+    onChange: handleSelectedMainCategory
   }), React.createElement(CategoryPicker, {
     title: "Sub Category",
     values: subCategories,
@@ -30380,7 +30546,8 @@ function Categories() {
   }), React.createElement("div", {
     className: "categories-submit"
   }, React.createElement("button", {
-    "uxp-variant": "cta"
+    "uxp-variant": "cta",
+    onClick: handleSubmit
   }, "Update List")));
 }
 
@@ -30890,6 +31057,172 @@ if(false) {}
 
 /***/ }),
 
+/***/ "./src/context/assets/assets.actions.js":
+/*!**********************************************!*\
+  !*** ./src/context/assets/assets.actions.js ***!
+  \**********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AssetsActionTypes = __webpack_require__(/*! ./assets.types.js */ "./src/context/assets/assets.types.js");
+
+exports.setAllAssets = (dispatch, allAssets) => {
+  dispatch({
+    type: AssetsActionTypes.SET_ALL_ASSETS,
+    payload: allAssets
+  });
+};
+
+exports.setSelectedAssets = (dispatch, selectedAssets) => {
+  dispatch({
+    type: AssetsActionTypes.SET_SELECTED_ASSETS,
+    payload: selectedAssets
+  });
+};
+
+exports.setFilteredAssets = (dispatch, filteredAssets) => {
+  dispatch({
+    type: AssetsActionTypes.SET_FILTERED_ASSETS,
+    payload: filteredAssets
+  });
+};
+
+/***/ }),
+
+/***/ "./src/context/assets/assets.reducer.js":
+/*!**********************************************!*\
+  !*** ./src/context/assets/assets.reducer.js ***!
+  \**********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AssetsActionTypes = __webpack_require__(/*! ./assets.types.js */ "./src/context/assets/assets.types.js");
+
+const initialState = {
+  selected: [],
+  filtered: [],
+  all: []
+};
+
+const assetsReducer = (state, action) => {
+  switch (action.type) {
+    case AssetsActionTypes.SET_ALL_ASSETS:
+      return { ...state,
+        all: action.payload
+      };
+
+    case AssetsActionTypes.SET_SELECTED_ASSETS:
+      return { ...state,
+        selected: action.payload
+      };
+
+    case AssetsActionTypes.SET_FILTERED_ASSETS:
+      return { ...state,
+        filtered: action.payload
+      };
+
+    default:
+      return state;
+  }
+};
+
+assetsReducer.initialState = initialState;
+module.exports = assetsReducer;
+
+/***/ }),
+
+/***/ "./src/context/assets/assets.types.js":
+/*!********************************************!*\
+  !*** ./src/context/assets/assets.types.js ***!
+  \********************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+const AssetsActionTypes = {
+  SET_ALL_ASSETS: 'SET_ALL_ASSETS',
+  SET_SELECTED_ASSETS: 'SET_SELECTED_ASSETS',
+  SET_FILTERED_ASSETS: 'SET_FILTERED_ASSETS'
+};
+module.exports = AssetsActionTypes;
+
+/***/ }),
+
+/***/ "./src/context/categories/categories.actions.js":
+/*!******************************************************!*\
+  !*** ./src/context/categories/categories.actions.js ***!
+  \******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const CategoriesActionTypes = __webpack_require__(/*! ./categories.types.js */ "./src/context/categories/categories.types.js");
+
+exports.setAllCategories = (dispatch, allCategoriesObj) => {
+  dispatch({
+    type: CategoriesActionTypes.SET_ALL_CATEGORIES,
+    payload: allCategoriesObj
+  });
+};
+
+exports.setSelectedCategories = (dispatch, selectedCategoriesArray) => {
+  dispatch({
+    type: CategoriesActionTypes.SET_SELECTED_CATEGORIES,
+    payload: selectedCategoriesArray
+  });
+};
+
+/***/ }),
+
+/***/ "./src/context/categories/categories.reducer.js":
+/*!******************************************************!*\
+  !*** ./src/context/categories/categories.reducer.js ***!
+  \******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const CategoriesActionTypes = __webpack_require__(/*! ./categories.types.js */ "./src/context/categories/categories.types.js");
+
+const initialState = {
+  selected: [],
+  all: {}
+};
+
+const categoriesReducer = (state, action) => {
+  switch (action.type) {
+    case CategoriesActionTypes.SET_ALL_CATEGORIES:
+      return { ...state,
+        all: action.payload
+      };
+
+    case CategoriesActionTypes.SET_SELECTED_CATEGORIES:
+      return { ...state,
+        selected: action.payload
+      };
+
+    default:
+      return state;
+  }
+};
+
+categoriesReducer.initialState = initialState;
+module.exports = categoriesReducer;
+
+/***/ }),
+
+/***/ "./src/context/categories/categories.types.js":
+/*!****************************************************!*\
+  !*** ./src/context/categories/categories.types.js ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+const CategoriesActionTypes = {
+  SET_SELECTED_CATEGORIES: 'SET_SELECTED_CATEGORIES',
+  SET_ALL_CATEGORIES: 'SET_ALL_CATEGORIES'
+};
+module.exports = CategoriesActionTypes;
+
+/***/ }),
+
 /***/ "./src/context/globalState.jsx":
 /*!*************************************!*\
   !*** ./src/context/globalState.jsx ***!
@@ -30903,6 +31236,10 @@ const useCombinedReducers = __webpack_require__(/*! ../hooks/useCombinedReducers
 
 const settingsReducer = __webpack_require__(/*! ./settings/settings.reducer.js */ "./src/context/settings/settings.reducer.js");
 
+const categoriesReducer = __webpack_require__(/*! ./categories/categories.reducer.js */ "./src/context/categories/categories.reducer.js");
+
+const assetsReducer = __webpack_require__(/*! ./assets/assets.reducer.js */ "./src/context/assets/assets.reducer.js");
+
 const DispatchContext = React.createContext();
 const StateContext = React.createContext();
 
@@ -30910,7 +31247,9 @@ function GlobalState({
   children
 }) {
   const [state, dispatch] = useCombinedReducers({
-    settings: React.useReducer(settingsReducer, settingsReducer.initialState)
+    settings: React.useReducer(settingsReducer, settingsReducer.initialState),
+    categories: React.useReducer(categoriesReducer, categoriesReducer.initialState),
+    assets: React.useReducer(assetsReducer, assetsReducer.initialState)
   });
   return React.createElement(DispatchContext.Provider, {
     value: dispatch
@@ -30940,19 +31279,19 @@ module.exports = GlobalState;
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-const SettingsActionTypes = __webpack_require__(/*! ./settings.types.js */ "./src/context/settings/settings.types.js");
+const SettingsActionTypes = __webpack_require__(/*! ./settings.types.js */ "./src/context/settings/settings.types.js"); // exports.setAssetsFolderPath = (dispatch, folderPath) => {
+//    dispatch({ type: SettingsActionTypes.SET_ASSETS_FOLDER_PATH, payload: folderPath });
+// };
 
-exports.setAssetsFolderPath = (dispatch, folderPath) => {
-  dispatch({
-    type: SettingsActionTypes.SET_ASSETS_FOLDER_PATH,
-    payload: folderPath
-  });
-};
 
 exports.setAssetsFolderObj = (dispatch, folderObj) => {
   dispatch({
     type: SettingsActionTypes.SET_ASSETS_FOLDER_OBJECT,
     payload: folderObj
+  });
+  dispatch({
+    type: SettingsActionTypes.SET_ASSETS_FOLDER_PATH,
+    payload: folderObj.nativePath
   });
 };
 
@@ -31099,27 +31438,57 @@ module.exports = useCreateDialog;
 
 /***/ }),
 
-/***/ "./src/hooks/useDimensionsOnResize.js":
-/*!********************************************!*\
-  !*** ./src/hooks/useDimensionsOnResize.js ***!
-  \********************************************/
+/***/ "./src/hooks/useMonitorAndReloadAssets.js":
+/*!************************************************!*\
+  !*** ./src/hooks/useMonitorAndReloadAssets.js ***!
+  \************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
 const React = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 
-const useDimensionsOnResize = ref => {
-  const [panelDimensions, setPanelDimensions] = React.useState({});
-  React.useEffect(() => {
-    ref.current.addEventListener('resize', e => {
-      const dimensions = e.target.getBoundingClientRect();
-      setPanelDimensions(dimensions);
-    });
-  }, []);
-  return panelDimensions;
-};
+const {
+  useGlobalState
+} = __webpack_require__(/*! ../context/globalState.jsx */ "./src/context/globalState.jsx");
 
-module.exports = useDimensionsOnResize;
+const {
+  setAllAssets,
+  setFilteredAssets
+} = __webpack_require__(/*! ../context/assets/assets.actions.js */ "./src/context/assets/assets.actions.js");
+
+const {
+  setAllCategories
+} = __webpack_require__(/*! ../context/categories/categories.actions.js */ "./src/context/categories/categories.actions.js");
+
+const loadAssetDataFromFile = __webpack_require__(/*! ../utils/loadAssetDataFromFile.js */ "./src/utils/loadAssetDataFromFile.js");
+
+function useMonitorAndReloadAssets() {
+  const [context, dispatch] = useGlobalState();
+  const {
+    assetsFolderObj,
+    configJsonName
+  } = context.settings;
+
+  const loadCategories = async (folderObj, jsonName) => {
+    const response = await loadAssetDataFromFile(folderObj, jsonName);
+
+    if (response.status === 'success') {
+      setAllCategories(dispatch, response.categories);
+      setAllAssets(dispatch, response.assets);
+      setFilteredAssets(dispatch, response.assets);
+    } else {
+      setAllCategories(dispatch, {});
+      setAllAssets(dispatch, []);
+    }
+  };
+
+  React.useEffect(() => {
+    const assetsFolderExists = !!assetsFolderObj.nativePath;
+    assetsFolderExists && loadCategories(assetsFolderObj, configJsonName);
+  }, [assetsFolderObj, configJsonName]);
+}
+
+module.exports = useMonitorAndReloadAssets;
 
 /***/ }),
 
@@ -31218,10 +31587,10 @@ module.exports = handledragFilesToCanvas;
 /***/ (function(module, exports) {
 
 async function loadAssetDataFromFile(folderObject, fileName) {
-  let categoriesJson;
+  let configJson;
 
   try {
-    categoriesJson = await folderObject.getEntry(fileName);
+    configJson = await folderObject.getEntry(fileName);
   } catch (err) {
     return {
       status: 'error',
@@ -31233,10 +31602,10 @@ async function loadAssetDataFromFile(folderObject, fileName) {
     };
   }
 
-  let categoriesFromJson;
+  let assetsData;
 
   try {
-    categoriesFromJson = JSON.parse(await categoriesJson.read());
+    assetsData = JSON.parse(await configJson.read());
   } catch (err) {
     return {
       status: 'error',
@@ -31248,9 +31617,32 @@ async function loadAssetDataFromFile(folderObject, fileName) {
     };
   }
 
+  let categoriesObj;
+
+  try {
+    categoriesObj = assetsData.reduce((acc, asset) => {
+      let parent = acc;
+      asset.category.forEach((category, i) => {
+        if (!parent.hasOwnProperty(category)) parent[category] = {};
+        parent = parent[category];
+      });
+      return acc;
+    }, {});
+  } catch (err) {
+    return {
+      status: 'error',
+      type: 'parseError',
+      data: {
+        title: "Couldn't load your categories",
+        body: `The config file does not contain the necessary data. Please refer the sample json. Error: ${err}`
+      }
+    };
+  }
+
   return {
     status: 'success',
-    data: categoriesFromJson
+    assets: assetsData,
+    categories: categoriesObj
   };
 }
 

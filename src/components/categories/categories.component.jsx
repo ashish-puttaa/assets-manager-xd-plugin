@@ -1,12 +1,13 @@
 const React = require('react');
 
-const { useGlobalState } = require('../../context/globalState.jsx');
-const { error } = require('../../../lib/dialogs.js');
-const loadAssetDataFromFile = require('../../utils/loadAssetDataFromFile.js');
-
 const CategoryPicker = require('../category-picker/category-picker.component.jsx');
 
+const { setFilteredAssets } = require('../../context/assets/assets.actions.js');
+const { setSelectedCategories } = require('../../context/categories/categories.actions.js');
+
 require('./categories.styles.css');
+
+const { useGlobalState } = require('../../context/globalState.jsx');
 
 function Categories() {
    const [mainCategories, setMainCategories] = React.useState([]);
@@ -16,32 +17,28 @@ function Categories() {
    const [selectedSubCategory, setSelectedSubCategory] = React.useState('');
 
    const [context, dispatch] = useGlobalState();
-   const { settings } = context;
-   const { assetsFolderObj, configJsonName } = settings;
-
-   const setCategories = (jsonData) => {
-      setMainCategories(jsonData.main);
-      setSubCategories(jsonData.sub);
-   };
-
-   const loadCategories = async (folderObj, jsonName) => {
-      const response = await loadAssetDataFromFile(folderObj, jsonName);
-
-      if (response.status === 'success') {
-         const { data: jsonData } = response;
-         setCategories(jsonData);
-      } else {
-         const { data: errorData } = response;
-         error(errorData.title, errorData.body);
-      }
-
-      return errorMessage;
-   };
+   const { all: allCategories } = context.categories;
+   const { all: allAssets } = context.assets;
 
    React.useEffect(() => {
-      const assetsFolderExists = !!assetsFolderObj.nativePath;
-      assetsFolderExists && loadCategories(assetsFolderObj, configJsonName);
-   }, [assetsFolderObj, configJsonName]);
+      setMainCategories([...Object.keys(allCategories)]);
+   }, [allCategories]);
+
+   const handleSelectedMainCategory = (val) => {
+      const newKeys = val && Object.keys(allCategories[val]);
+      setSelectedMainCategory(val);
+      setSubCategories(newKeys);
+   };
+
+   const handleSubmit = () => {
+      setSelectedCategories(dispatch, [selectedMainCategory, selectedSubCategory]);
+
+      const filteredAssets = allAssets.filter((item) =>
+         item.category.some((c) => c === selectedSubCategory)
+      );
+
+      setFilteredAssets(dispatch, filteredAssets);
+   };
 
    return (
       <div className="categories-wrapper">
@@ -50,7 +47,7 @@ function Categories() {
          <CategoryPicker
             title="Main Category"
             values={mainCategories}
-            onChange={(val) => setSelectedMainCategory(val)}
+            onChange={handleSelectedMainCategory}
          />
 
          <CategoryPicker
@@ -59,7 +56,9 @@ function Categories() {
             onChange={(val) => setSelectedSubCategory(val)}
          />
          <div className="categories-submit">
-            <button uxp-variant="cta">Update List</button>
+            <button uxp-variant="cta" onClick={handleSubmit}>
+               Update List
+            </button>
          </div>
       </div>
    );

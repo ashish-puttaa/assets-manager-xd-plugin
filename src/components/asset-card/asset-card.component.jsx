@@ -1,4 +1,5 @@
 const React = require('react');
+const upath = require('upath');
 
 const handleDragFilesToCanvas = require('../../utils/handleDragFilesToCanvas.js');
 
@@ -9,21 +10,18 @@ const SELECT_TYPE = {
    MULTIPLE: 'MULTIPLE',
 };
 
-const folderUrl =
-   'C:/Users/ashish/AppData/Local/Packages/Adobe.CC.XD_adky2gkssdxte/LocalState/develop/zoho-asset-manager';
-
-function AssetCard({ url, handleSelect, selected }) {
+function AssetCard({ data, handleSelect, selected, folderUrl }) {
    const onClick = (e) => {
       const selectType = e.ctrlKey ? SELECT_TYPE.MULTIPLE : SELECT_TYPE.SINGLE;
-      handleSelect && handleSelect(selectType, url);
+      handleSelect && handleSelect(selectType, data.url);
    };
 
    const onDragStart = (e) => {
-      const assetUrl = `${folderUrl}/${url}`;
+      const assetUrl = upath.join(folderUrl, data.url);
 
       if (!selected) {
          handleDragFilesToCanvas(e, assetUrl);
-         handleSelect(SELECT_TYPE.SINGLE, url);
+         handleSelect(SELECT_TYPE.SINGLE, data.url);
       }
    };
 
@@ -33,8 +31,9 @@ function AssetCard({ url, handleSelect, selected }) {
          onClick={onClick}
          draggable
          onDragStart={onDragStart}
+         title={data.name}
       >
-         <img src={url} />
+         <img src={upath.join('userData', data.url)} />
       </div>
    );
 }

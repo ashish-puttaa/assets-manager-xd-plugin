@@ -1,5 +1,9 @@
 const React = require('react');
-const fs = require('uxp').storage.localFileSystem;
+
+const { useGlobalState } = require('../../context/globalState.jsx');
+const {
+   setSelectedAssets: setSelectedAssetsInContext,
+} = require('../../context/assets/assets.actions.js');
 
 const handleDragFilesToCanvas = require('../../utils/handleDragFilesToCanvas.js');
 const AssetCard = require('../asset-card/asset-card.component.jsx');
@@ -7,41 +11,19 @@ const { SELECT_TYPE } = AssetCard;
 
 require('./asset-gallery.styles.css');
 
-const folderUrl =
-   'C:/Users/ashish/AppData/Local/Packages/Adobe.CC.XD_adky2gkssdxte/LocalState/develop/zoho-asset-manager';
-
-const imageUrls = [
-   { url: 'userData/plus-math-b-96.png' },
-   { url: 'userData/plus-math-96.png' },
-
-   { url: 'userData/plus-52.png' },
-   { url: 'userData/cancel-96.png' },
-   { url: 'userData/edit.svg' },
-   { url: 'userData/cancel2-96.png' },
-   { url: 'userData/delete-96.png' },
-   { url: 'userData/delete-bin-96.png' },
-   { url: 'userData/delete-flat-96.png' },
-   { url: 'userData/settings-flat-144.png' },
-   { url: 'userData/settings-144.png' },
-   { url: 'userData/settings-flat-144.svg' },
-   { url: 'userData/table.svg' },
-   { url: 'userData/big-table.svg' },
-   { url: 'userData/peace.jpg' },
-   { url: 'userData/edit-52.png' },
-   { url: 'userData/coding.png' },
-];
-
 function AssetGallery() {
    const [assets, setAssets] = React.useState([]);
    const [selectedAssets, setSelectedAssets] = React.useState([]);
 
-   React.useEffect(() => {
-      setAssets(imageUrls);
-   }, []);
+   const [context, dispatch] = useGlobalState();
+   const {
+      settings: { assetsFolderPath },
+      assets: { filtered: filteredAssets },
+   } = context;
 
    React.useEffect(() => {
-      console.log({ selectedAssets });
-   }, [selectedAssets]);
+      setAssets(filteredAssets);
+   }, [filteredAssets]);
 
    const handleSelect = (selectType, url) => {
       const asset = assets.find((el) => el.url === url);
@@ -57,13 +39,27 @@ function AssetGallery() {
          }
 
          setSelectedAssets(() => newArray);
+         setSelectedAssetsInContext(dispatch, newArray);
       } else {
          setSelectedAssets(() => [asset]);
+         setSelectedAssetsInContext(dispatch, [asset]);
       }
    };
 
+   const handleSearch = (e) => {
+      const enterKeyCode = 13;
+      if (e.keyCode == enterKeyCode) {
+         const searchString = e.target.value;
+         const searchedAssets = filteredAssets.filter((item) =>
+            item.name.toLowerCase().includes(searchString.toLowerCase())
+         );
+         setAssets(searchedAssets);
+      }
+      e.target.focus();
+   };
+
    const onDragStartCapture = (e) => {
-      const thingsToDrag = selectedAssets.map((el) => `${folderUrl}/${el.url}`);
+      const thingsToDrag = selectedAssets.map((el) => `${assetsFolderPath}/${el.url}`);
       handleDragFilesToCanvas(e, thingsToDrag);
    };
 
@@ -80,7 +76,8 @@ function AssetGallery() {
                type="text"
                placeholder="Search..."
                style={{ paddingLeft: '100px' }}
-               disabled={assets.length === 0}
+               disabled={filteredAssets.length === 0}
+               onKeyDown={handleSearch}
             />
             <div className="ag-search-icon">
                <img src="/assets/search-150.png" />
@@ -88,17 +85,18 @@ function AssetGallery() {
          </div>
 
          <div className="ag-body">
-            {assets.length ? (
+            {filteredAssets.length ? (
                <div className="ag-assets" draggable onDragStartCapture={onDragStartCapture}>
                   {assets.map((item, i) => {
                      const isSelected = selectedAssets.some((el) => el.url === item.url);
 
                      return (
                         <AssetCard
-                           url={item.url}
+                           data={item}
                            key={i}
                            selected={isSelected}
                            handleSelect={handleSelect}
+                           folderUrl={assetsFolderPath}
                         />
                      );
                   })}
@@ -109,6 +107,12 @@ function AssetGallery() {
                   <p>Please open Settings and do the following:</p>
                   <p>1. Select the Assets Folder Path.</p>
                   <p>2. Enter the correct name for the config file.</p>
+               </div>
+            )}
+
+            {!assets.length && (
+               <div className="ag-no-assets">
+                  <h2>No assets match the search string.</h2>
                </div>
             )}
          </div>
